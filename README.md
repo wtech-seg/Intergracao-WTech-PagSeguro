@@ -44,16 +44,12 @@ Self-Pay-Integration/
 ## Como Rodar
 
 1. Defina variáveis de ambiente para sandbox:
-
-   ```bash
-   ```
-
+````
 env PAGSEGURO\_EMAIL=[seu-email@sandbox.pagseguro.uol.com.br](mailto:seu-email@sandbox.pagseguro.uol.com.br)
 env PAGSEGURO\_TOKEN=seu-token-de-sandbox
-
 ````
 2. Compile e execute:
-   ```bash
+````
 mvn clean package
 mvn spring-boot:run
 ````
