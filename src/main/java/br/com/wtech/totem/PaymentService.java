@@ -1,65 +1,64 @@
-//package br.com.wtech.totem;
-//
-//import com.fasterxml.jackson.databind.JsonNode;
-//import com.fasterxml.jackson.databind.ObjectMapper;
-//import java.net.URI;
-//import java.net.http.HttpClient;
-//import java.net.http.HttpRequest;
-//import java.net.http.HttpResponse;
-//import java.time.Duration;
-//
-//public class PaymentService {
-//    private final String email;
-//    private final String token;
-//    private final HttpClient client;
-//    private final ObjectMapper mapper = new ObjectMapper();
-//
-//    public PaymentService(String email, String token) {
-//        this.email = email;
-//        this.token = token;
-//        this.client = HttpClient.newBuilder()
-//                .connectTimeout(Duration.ofSeconds(10))
-//                .build();
-//    }
-//
-//    /**
-//     * Envia uma transação de cartão via Checkout Transparente v2.
-//     * @param amountInCents Valor em centavos (ex: 1250 = R$12,50)
-//     * @param cardToken     Token do cartão gerado no front-end
-//     * @return JsonNode com o retorno da API
-//     */
-//    public JsonNode pagarComCartao(int amountInCents, String cardToken) throws Exception {
-//        // Monta o JSON de requisição
-//        JsonNode body = mapper.createObjectNode()
-//                .put("email", email)
-//                .put("token", token)
-//                .put("paymentMode", "default")
-//                .put("paymentMethod", "creditCard")
-//                .put("currency", "BRL")
-//                .put("itemId1", "001")
-//                .put("itemDescription1", "Estacionamento")
-//                .put("itemAmount1", String.format("%.2f", amountInCents / 100.0))
-//                .put("itemQuantity1", "1")
-//                .put("creditCardToken", cardToken)
-//                .put("installmentQuantity", "1")
-//                .put("installmentValue", String.format("%.2f", amountInCents / 100.0))
-//                .put("noInterestInstallmentQuantity", "2");
-//
-//        String jsonBody = mapper.writeValueAsString(body);
-//
-//        // Prepara requisição HTTP
-//        HttpRequest request = HttpRequest.newBuilder()
-//                .uri(URI.create("https://ws.pagseguro.uol.com.br/v2/transactions"))
-//                .timeout(Duration.ofSeconds(20))
-//                .header("Content-Type", "application/json; charset=UTF-8")
-//                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-//                .build();
-//
-//        // Envia e retorna o JsonNode de resposta
-//        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-//        if (response.statusCode() != 200) {
-//            throw new RuntimeException("Erro PagSeguro: " + response.body());
-//        }
-//        return mapper.readTree(response.body());
-//    }
-//}
+package br.com.wtech.totem;
+
+import java.net.URI;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import javax.xml.parsers.DocumentBuilderFactory;
+import org.w3c.dom.Document;
+import org.springframework.stereotype.Service;
+
+/**
+ * Serviço de pagamento via PagSeguro Checkout Transparente v2
+ */
+@Service
+public class PaymentService {
+    private final String email;
+    private final String token;
+    private final HttpClient client;
+
+    public PaymentService(String email, String token) {
+        this.email = email;
+        this.token = token;
+        this.client = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+    }
+
+    public String pagarComCartao(int amountInCents, String cardToken) throws Exception {
+        StringBuilder form = new StringBuilder();
+        form.append("email=").append(URLEncoder.encode(email, StandardCharsets.UTF_8));
+        form.append("&token=").append(URLEncoder.encode(token, StandardCharsets.UTF_8));
+        form.append("&paymentMode=default");
+        form.append("&paymentMethod=creditCard");
+        form.append("&currency=BRL");
+        form.append("&itemId1=").append(URLEncoder.encode("001", StandardCharsets.UTF_8));
+        form.append("&itemDescription1=").append(URLEncoder.encode("Estacionamento", StandardCharsets.UTF_8));
+        form.append("&itemAmount1=").append(URLEncoder.encode(String.format("%.2f", amountInCents / 100.0), StandardCharsets.UTF_8));
+        form.append("&itemQuantity1=1");
+        form.append("&creditCardToken=").append(URLEncoder.encode(cardToken, StandardCharsets.UTF_8));
+        form.append("&installmentQuantity=1");
+        form.append("&installmentValue=").append(URLEncoder.encode(String.format("%.2f", amountInCents / 100.0), StandardCharsets.UTF_8));
+        form.append("&noInterestInstallmentQuantity=2");
+        String formBody = form.toString();
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://ws.sandbox.pagseguro.uol.com.br/v2/transactions"))
+                .timeout(Duration.ofSeconds(20))
+                .header("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
+                .POST(HttpRequest.BodyPublishers.ofString(formBody))
+                .build();
+
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        if (response.statusCode() != 200 && response.statusCode() != 201) {
+            throw new RuntimeException("Erro PagSeguro: HTTP " + response.statusCode() + " - " + response.body());
+        }
+        Document doc = DocumentBuilderFactory.newInstance()
+                .newDocumentBuilder()
+                .parse(new java.io.ByteArrayInputStream(response.body().getBytes(StandardCharsets.UTF_8)));
+        return doc.getElementsByTagName("status").item(0).getTextContent();
+    }
+}
