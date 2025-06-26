@@ -1,5 +1,7 @@
 package br.com.wtech.totem;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 import java.net.URI;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -8,19 +10,16 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import javax.xml.parsers.DocumentBuilderFactory;
-import org.w3c.dom.Document;
-import org.springframework.stereotype.Service;
 
-/**
- * Serviço de pagamento via PagSeguro Checkout Transparente v2
- */
 @Service
 public class PaymentService {
     private final String email;
     private final String token;
     private final HttpClient client;
 
-    public PaymentService(String email, String token) {
+    public PaymentService(
+            @Value("${pagseguro.email}") String email,
+            @Value("${pagseguro.token}") String token) {
         this.email = email;
         this.token = token;
         this.client = HttpClient.newBuilder()
@@ -37,26 +36,28 @@ public class PaymentService {
         form.append("&currency=BRL");
         form.append("&itemId1=").append(URLEncoder.encode("001", StandardCharsets.UTF_8));
         form.append("&itemDescription1=").append(URLEncoder.encode("Estacionamento", StandardCharsets.UTF_8));
-        form.append("&itemAmount1=").append(URLEncoder.encode(String.format("%.2f", amountInCents / 100.0), StandardCharsets.UTF_8));
+        form.append("&itemAmount1=").append(URLEncoder.encode(
+                String.format("%.2f", amountInCents / 100.0), StandardCharsets.UTF_8));
         form.append("&itemQuantity1=1");
         form.append("&creditCardToken=").append(URLEncoder.encode(cardToken, StandardCharsets.UTF_8));
         form.append("&installmentQuantity=1");
-        form.append("&installmentValue=").append(URLEncoder.encode(String.format("%.2f", amountInCents / 100.0), StandardCharsets.UTF_8));
+        form.append("&installmentValue=").append(URLEncoder.encode(
+                String.format("%.2f", amountInCents / 100.0), StandardCharsets.UTF_8));
         form.append("&noInterestInstallmentQuantity=2");
-        String formBody = form.toString();
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create("https://ws.sandbox.pagseguro.uol.com.br/v2/transactions"))
                 .timeout(Duration.ofSeconds(20))
                 .header("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-                .POST(HttpRequest.BodyPublishers.ofString(formBody))
+                .POST(HttpRequest.BodyPublishers.ofString(form.toString()))
                 .build();
 
         HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != 200 && response.statusCode() != 201) {
             throw new RuntimeException("Erro PagSeguro: HTTP " + response.statusCode() + " - " + response.body());
         }
-        Document doc = DocumentBuilderFactory.newInstance()
+
+        var doc = DocumentBuilderFactory.newInstance()
                 .newDocumentBuilder()
                 .parse(new java.io.ByteArrayInputStream(response.body().getBytes(StandardCharsets.UTF_8)));
         return doc.getElementsByTagName("status").item(0).getTextContent();
