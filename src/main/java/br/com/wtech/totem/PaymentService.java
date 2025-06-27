@@ -2,64 +2,91 @@ package br.com.wtech.totem;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import java.net.URI;
 import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.net.http.*;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
+import java.util.Locale;
+import java.io.ByteArrayInputStream;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 @Service
 public class PaymentService {
-    private final String email;
-    private final String token;
-    private final HttpClient client;
 
-    public PaymentService(
-            @Value("${pagseguro.email}") String email,
-            @Value("${pagseguro.token}") String token) {
-        this.email = email;
-        this.token = token;
-        this.client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
-                .build();
-    }
+    @Value("${pagseguro.email}")
+    private String email;
+    @Value("${pagseguro.token}")
+    private String token;
 
+    private final HttpClient client = HttpClient.newHttpClient();
+
+    /**
+     * Retorna o status ("1" = pago, etc.)
+     */
     public String pagarComCartao(int amountInCents, String cardToken) throws Exception {
-        StringBuilder form = new StringBuilder();
-        form.append("email=").append(URLEncoder.encode(email, StandardCharsets.UTF_8));
-        form.append("&token=").append(URLEncoder.encode(token, StandardCharsets.UTF_8));
-        form.append("&paymentMode=default");
-        form.append("&paymentMethod=creditCard");
-        form.append("&currency=BRL");
-        form.append("&itemId1=").append(URLEncoder.encode("001", StandardCharsets.UTF_8));
-        form.append("&itemDescription1=").append(URLEncoder.encode("Estacionamento", StandardCharsets.UTF_8));
-        form.append("&itemAmount1=").append(URLEncoder.encode(
-                String.format("%.2f", amountInCents / 100.0), StandardCharsets.UTF_8));
-        form.append("&itemQuantity1=1");
-        form.append("&creditCardToken=").append(URLEncoder.encode(cardToken, StandardCharsets.UTF_8));
-        form.append("&installmentQuantity=1");
-        form.append("&installmentValue=").append(URLEncoder.encode(
-                String.format("%.2f", amountInCents / 100.0), StandardCharsets.UTF_8));
-        form.append("&noInterestInstallmentQuantity=2");
+        // form-urlencoded com todos os campos obrigatórios
+        String amount = String.format(Locale.US, "%.2f", amountInCents / 100.0);
+        StringBuilder sb = new StringBuilder();
+        sb.append("email=").append(URLEncoder.encode(email, StandardCharsets.UTF_8));
+        sb.append("&token=").append(URLEncoder.encode(token, StandardCharsets.UTF_8));
+        sb.append("&paymentMode=default");
+        sb.append("&paymentMethod=creditCard");
+        sb.append("&currency=BRL");
+        // buyer (sender) — substitua pelos dados reais do front
+        sb.append("&senderName=").append(URLEncoder.encode("Teste Comprador", StandardCharsets.UTF_8));
+        sb.append("&senderCPF=").append(URLEncoder.encode("11122233344", StandardCharsets.UTF_8));
+        sb.append("&senderAreaCode=11");
+        sb.append("&senderPhone=999999999");
+        sb.append("&senderEmail=").append(URLEncoder.encode("email@teste.com", StandardCharsets.UTF_8));
+        // shipping (exemplo)
+        sb.append("&shippingAddressStreet=").append(URLEncoder.encode("Av. Brasil", StandardCharsets.UTF_8));
+        sb.append("&shippingAddressNumber=1000");
+        sb.append("&shippingAddressDistrict=").append(URLEncoder.encode("Centro", StandardCharsets.UTF_8));
+        sb.append("&shippingAddressPostalCode=01000000");
+        sb.append("&shippingAddressCity=").append(URLEncoder.encode("São Paulo", StandardCharsets.UTF_8));
+        sb.append("&shippingAddressState=SP");
+        sb.append("&shippingAddressCountry=BRA");
+        // billing (mesmos campos)
+        sb.append("&billingAddressStreet=").append(URLEncoder.encode("Av. Brasil", StandardCharsets.UTF_8));
+        sb.append("&billingAddressNumber=1000");
+        sb.append("&billingAddressDistrict=").append(URLEncoder.encode("Centro", StandardCharsets.UTF_8));
+        sb.append("&billingAddressPostalCode=01000000");
+        sb.append("&billingAddressCity=").append(URLEncoder.encode("São Paulo", StandardCharsets.UTF_8));
+        sb.append("&billingAddressState=SP");
+        sb.append("&billingAddressCountry=BRA");
+        // cartão
+        sb.append("&creditCardToken=").append(URLEncoder.encode(cardToken, StandardCharsets.UTF_8));
+        sb.append("&installmentQuantity=1");
+        sb.append("&installmentValue=").append(URLEncoder.encode(amount, StandardCharsets.UTF_8));
+        sb.append("&noInterestInstallmentQuantity=1");
+        sb.append("&creditCardHolderName=").append(URLEncoder.encode("Maria Silva", StandardCharsets.UTF_8));
+        sb.append("&creditCardHolderCPF=").append(URLEncoder.encode("11122233344", StandardCharsets.UTF_8));
+        sb.append("&billingAddressSameAsShipping=true");
+        // itens
+        sb.append("&itemId1=001");
+        sb.append("&itemDescription1=").append(URLEncoder.encode("Estacionamento", StandardCharsets.UTF_8));
+        sb.append("&itemAmount1=").append(URLEncoder.encode(amount, StandardCharsets.UTF_8));
+        sb.append("&itemQuantity1=1");
 
-        HttpRequest request = HttpRequest.newBuilder()
+        String form = sb.toString();
+
+        HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create("https://ws.sandbox.pagseguro.uol.com.br/v2/transactions"))
-                .timeout(Duration.ofSeconds(20))
                 .header("Content-Type", "application/x-www-form-urlencoded; charset=UTF-8")
-                .POST(HttpRequest.BodyPublishers.ofString(form.toString()))
+                .POST(HttpRequest.BodyPublishers.ofString(form))
                 .build();
 
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() != 200 && response.statusCode() != 201) {
-            throw new RuntimeException("Erro PagSeguro: HTTP " + response.statusCode() + " - " + response.body());
+        HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) {
+            throw new RuntimeException("Erro PagSeguro: HTTP "
+                    + resp.statusCode() + " - " + resp.body());
         }
 
+        // extrai <status> do XML
+        var xml = resp.body();
         var doc = DocumentBuilderFactory.newInstance()
                 .newDocumentBuilder()
-                .parse(new java.io.ByteArrayInputStream(response.body().getBytes(StandardCharsets.UTF_8)));
+                .parse(new ByteArrayInputStream(xml.getBytes(StandardCharsets.UTF_8)));
         return doc.getElementsByTagName("status").item(0).getTextContent();
     }
 }

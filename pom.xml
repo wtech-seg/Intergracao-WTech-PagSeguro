@@ -20,12 +20,12 @@
     </properties>
 
     <dependencies>
-        <!-- PagSeguro API -->
-        <dependency>
-            <groupId>br.com.uol.pagseguro</groupId>
-            <artifactId>pagseguro-api</artifactId>
-            <version>4.3.2</version>
-        </dependency>
+<!--        &lt;!&ndash; PagSeguro API &ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>br.com.uol.pagseguro</groupId>-->
+<!--            <artifactId>pagseguro-api</artifactId>-->
+<!--            <version>4.3.2</version>-->
+<!--        </dependency>-->
         <!-- Spring Boot Web & JPA -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
