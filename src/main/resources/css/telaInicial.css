@@ -1,0 +1,25 @@
+#root {
+    -fx-background-color: #001727;
+}
+
+.hbox-painel {
+    -fx-background-color: white;
+    -fx-background-radius: 10px 10px 0 0;
+}
+
+#labelHora {
+    -fx-font-size: 48px;
+    -fx-font-weight: bold;
+    -fx-text-fill: black;
+    -fx-font-family: "Segoe UI";
+}
+
+#btnIniciar {
+    -fx-font-size: 28px;
+    -fx-background-color: #00cc00;
+    -fx-text-fill: white;
+    -fx-pref-width: 200px;
+    -fx-pref-height: 100px;
+    -fx-background-radius: 10px;
+    -fx-font-family: "Verdana";
+}

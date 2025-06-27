@@ -5,12 +5,20 @@ import javafx.animation.Timeline;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.GridPane;
 import javafx.util.Duration;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
 public class TelaInicialController {
+
+    @FXML
+    private GridPane root;
+
+    @FXML
+    private ImageView imgFundo;
 
     @FXML
     private Label labelHora;
@@ -22,6 +30,11 @@ public class TelaInicialController {
 
     @FXML
     public void initialize() {
+        // Faz o fundo ocupar 100% da largura e 80% da altura
+        imgFundo.fitWidthProperty().bind(root.widthProperty());
+        imgFundo.fitHeightProperty().bind(root.heightProperty().multiply(0.8));
+        // imgFundo.setPreserveRatio(true);
+
         iniciarRelogio();
     }
 
@@ -37,6 +50,6 @@ public class TelaInicialController {
     @FXML
     private void handleIniciar() {
         System.out.println("Botão INICIAR pressionado!");
-        // Aqui você pode trocar para outra tela usando FXMLLoader ou SceneManager personalizado
+        // trocar de tela aqui
     }
 }
