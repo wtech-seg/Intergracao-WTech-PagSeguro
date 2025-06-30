@@ -1,4 +1,4 @@
-package br.com.wtech.totem;
+package br.com.wtech.totem.service;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
