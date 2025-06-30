@@ -1,3 +1,4 @@
+// src/main/java/br/com/wtech/totem/entity/Ticket.java
 package br.com.wtech.totem.entity;
 
 import jakarta.persistence.*;
@@ -17,12 +18,14 @@ public class Ticket {
     @Column(name = "exit_time")
     private LocalDateTime exitTime;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "status", length = 20, nullable = false)
-    private TicketStatus status;
+    /**
+     * status no banco:
+     * 1=GERADO, 2=CORTESIA, 3=PAGO, 4=LIDO_SAIDA, 5=CANCELADO
+     */
+    @Column(name = "status", nullable = false)
+    private Integer status;
 
-    public Ticket() {}
-
+    // getters e setters
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
 
@@ -32,6 +35,6 @@ public class Ticket {
     public LocalDateTime getExitTime() { return exitTime; }
     public void setExitTime(LocalDateTime exitTime) { this.exitTime = exitTime; }
 
-    public TicketStatus getStatus() { return status; }
-    public void setStatus(TicketStatus status) { this.status = status; }
+    public Integer getStatus() { return status; }
+    public void setStatus(Integer status) { this.status = status; }
 }
