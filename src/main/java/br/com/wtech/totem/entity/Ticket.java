@@ -1,20 +1,37 @@
 package br.com.wtech.totem.entity;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Column;
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
 
 @Entity
+@Table(name = "tickets")
 public class Ticket {
+
     @Id
+    @Column(name = "code", length = 50)
     private String code;
 
-    @Column(nullable = false)
-    private boolean paid;
+    @Column(name = "entry_time", nullable = false)
+    private LocalDateTime entryTime;
 
-    // getters e setters
+    @Column(name = "exit_time")
+    private LocalDateTime exitTime;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", length = 20, nullable = false)
+    private TicketStatus status;
+
+    public Ticket() {}
+
     public String getCode() { return code; }
     public void setCode(String code) { this.code = code; }
-    public boolean isPaid() { return paid; }
-    public void setPaid(boolean paid) { this.paid = paid; }
+
+    public LocalDateTime getEntryTime() { return entryTime; }
+    public void setEntryTime(LocalDateTime entryTime) { this.entryTime = entryTime; }
+
+    public LocalDateTime getExitTime() { return exitTime; }
+    public void setExitTime(LocalDateTime exitTime) { this.exitTime = exitTime; }
+
+    public TicketStatus getStatus() { return status; }
+    public void setStatus(TicketStatus status) { this.status = status; }
 }
