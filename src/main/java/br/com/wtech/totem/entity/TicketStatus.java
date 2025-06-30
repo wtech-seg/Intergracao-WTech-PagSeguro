@@ -1,7 +1,9 @@
 package br.com.wtech.totem.entity;
 
 public enum TicketStatus {
-    PENDENTE,
+    GERADO,
+    CORTESIA,
     PAGO,
+    LIDO_SAIDA,
     CANCELADO
 }
