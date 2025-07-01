@@ -18,17 +18,10 @@
             stylesheets="@/css/telaBase.css">
 
     <!-- Logo no canto superior direito -->
-    <ImageView fx:id="imgLogo"
-               pickOnBounds="true"
-               onMouseClicked="#handleLogoClick"
-               AnchorPane.topAnchor="10"
-               AnchorPane.rightAnchor="10"
-               fitHeight="40"
-               preserveRatio="true">
-        <image>
-            <Image url="@/imagens/logo_w.png"/>
-        </image>
-    </ImageView>
+    <fx:include fx:id="logoContainer"
+                source="/fxml/componentes/logo.fxml"
+                AnchorPane.topAnchor="30"
+                AnchorPane.rightAnchor="30"/>
 
     <!-- Painel branco central -->
     <VBox fx:id="painelPrincipal"
@@ -83,35 +76,15 @@
         <!-- Rodapé: separar cancelar e bloco de permanência -->
         <AnchorPane VBox.vgrow="NEVER" style="-fx-padding: 0;">
 
-            <!-- Botão Cancelar, sempre no canto inferior esquerdo -->
-            <Button fx:id="btnCancelar"
-                    onAction="#handleCancelar"
-                    styleClass="botao-cancelar"
-                    AnchorPane.leftAnchor="0"
-                    AnchorPane.bottomAnchor="0">
-                <graphic>
-                    <HBox alignment="CENTER" spacing="8">
-                        <ImageView fitHeight="48" fitWidth="48" preserveRatio="true">
-                            <image><Image url="@/imagens/cancelar.png"/></image>
-                        </ImageView>
-                        <Label text="Cancelar" styleClass="botao-cancelar-texto"/>
-                    </HBox>
-                </graphic>
-            </Button>
+            <!-- Include do botão “Cancelar” -->
+            <fx:include fx:id="cancelarContainer"
+                        source="/fxml/componentes/botaoCancelar.fxml"/>
 
-            <!-- Bloco de permanência, canto inferior direito -->
-            <VBox fx:id="blocoPermanencia"
-                  styleClass="bloco-permanencia"
-                  AnchorPane.rightAnchor="0"
-                  AnchorPane.bottomAnchor="0"
-                  alignment="CENTER"
-                  spacing="4">
-                <padding>
-                    <Insets top="10" right="10" bottom="10" left="10"/>
-                </padding>
-                <Label text="Permanência:" styleClass="permanencia-titulo"/>
-                <Label fx:id="lblTempo" text="00:00" styleClass="permanencia-tempo"/>
-            </VBox>
+            <!-- Include do bloco “Permanência” -->
+            <fx:include fx:id="permanenciaContainer"
+                        source="/fxml/componentes/blocoPermanencia.fxml"
+                        AnchorPane.rightAnchor="0"
+                        AnchorPane.bottomAnchor="0"/>
         </AnchorPane>
     </VBox>
 </AnchorPane>

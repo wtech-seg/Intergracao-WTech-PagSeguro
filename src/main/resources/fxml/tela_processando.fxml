@@ -16,17 +16,10 @@
             stylesheets="@/css/telaBase.css">
 
     <!-- Logo no canto superior direito -->
-    <ImageView fx:id="imgLogo"
-               pickOnBounds="true"
-               onMouseClicked="#handleLogoClick"
-               AnchorPane.topAnchor="10"
-               AnchorPane.rightAnchor="10"
-               fitHeight="40"
-               preserveRatio="true">
-        <image>
-            <Image url="@/imagens/logo_w.png"/>
-        </image>
-    </ImageView>
+    <fx:include fx:id="logoContainer"
+                source="/fxml/componentes/logo.fxml"
+                AnchorPane.topAnchor="30"
+                AnchorPane.rightAnchor="30"/>
 
     <!-- Painel branco central -->
     <VBox fx:id="painelPrincipal"

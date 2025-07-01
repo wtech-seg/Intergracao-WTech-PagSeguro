@@ -55,7 +55,7 @@
     -fx-min-width: 260px;
     -fx-min-height: 160px;
     -fx-border-color: transparent;
-    -fx-background-radius: 0 10px 0 0;
+    -fx-background-radius: 0 10px 0 10px;
 }
 
 .botao-cancelar-texto {
@@ -84,7 +84,7 @@
 /* ===== Botão Confirmar (verde) ===== */
 .botao-confirmar {
     -fx-background-color: #00cc00;
-    -fx-background-radius: 10 0 0 0;
+    -fx-background-radius: 10px 0 10px 0;
     -fx-text-fill: white;
     -fx-font-size: 32px;
     -fx-font-weight: bold;
@@ -102,7 +102,7 @@
 /* === Bloco de Permanência === */
 .bloco-permanencia {
     -fx-background-color: #0A4A78;
-    -fx-background-radius: 10 0 0 0px;
+    -fx-background-radius: 10px 0 10px 0;
     -fx-padding: 10px;
     -fx-min-width: 260px;
     -fx-min-height: 160px;
