@@ -71,7 +71,7 @@ public class TelaInicialController {
 
         try {
             Parent telaLeitor = new FXMLLoader(url).load();
-            Scene novaCena = new Scene(telaLeitor);
+            Scene sceneLeitor = new Scene(telaLeitor);
 
             Stage stage = (Stage) btnIniciar.getScene().getWindow();
 
@@ -80,14 +80,14 @@ public class TelaInicialController {
             stage.setFullScreenExitKeyCombination(null);
 
             // Registra ESC para minimizar na Tela Leitor
-            novaCena.setOnKeyPressed(evt -> {
+            sceneLeitor.setOnKeyPressed(evt -> {
                 if (evt.getCode() == KeyCode.ESCAPE) {
                     stage.setIconified(true);
                 }
             });
 
             // Troca a cena e entra em fullscreen imediatamente
-            stage.setScene(novaCena);
+            stage.setScene(sceneLeitor);
             stage.setFullScreen(true);
             stage.show();
 

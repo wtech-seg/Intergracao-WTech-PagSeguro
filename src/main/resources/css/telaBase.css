@@ -1,0 +1,125 @@
+/* Painel branco */
+.painel-branco {
+    -fx-background-color: #e6eef9;
+    -fx-background-radius: 10;
+}
+
+.cabecalho-imagem {
+    -fx-fit-height: 60px;
+    -fx-preserve-ratio: true;
+}
+
+.cabecalho-box {
+    -fx-alignment: center;
+    -fx-spacing: 10px;
+    -fx-padding: 10px 0 0 10px;
+}
+
+.cabecalho-titulo {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #001727;
+}
+
+.cabecalho-separador-vertical {
+    -fx-background-color: black;
+    -fx-pref-width: 2px;
+    -fx-min-width: 2px;
+    -fx-max-width: 2px;
+    -fx-min-height: 60px;
+    -fx-pref-height: 60px;
+}
+
+.cabecalho-separador-horizontal {
+    -fx-background-color: black;
+    -fx-pref-height: 2px;
+    -fx-min-height: 2px;
+    -fx-max-height: 2px;
+    -fx-pref-width: 100%;
+}
+
+/* Texto central do meio */
+.label-destaque {
+    -fx-font-size: 72px;
+    /*-fx-font-weight: bold;*/
+    -fx-text-fill: #000000;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 4, 0.3, 2, 2);
+}
+
+.botao-cancelar {
+    -fx-background-color: #c21807;
+    -fx-text-fill: white;
+    -fx-cursor: hand;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-min-width: 260px;
+    -fx-min-height: 160px;
+    -fx-border-color: transparent;
+    -fx-background-radius: 0 10px 0 0;
+}
+
+.botao-cancelar-texto {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 32px;
+}
+
+/* HBox que envolve os botões no centro */
+.botoes-centro-box {
+    /* opcional: largura mínima para não ficar muito junto */
+    -fx-padding: 0 50px 0 50px;
+}
+
+/* Botões de opção */
+.botao-opcao {
+    -fx-background-color: #0A4A78;
+    -fx-cursor: hand;
+    -fx-font-size: 32px;
+    -fx-text-fill: white;
+    -fx-background-radius: 8px;
+    -fx-min-width: 260px;
+    -fx-min-height: 200px;
+}
+
+/* ===== Botão Confirmar (verde) ===== */
+.botao-confirmar {
+    -fx-background-color: #00cc00;
+    -fx-background-radius: 10 0 0 0;
+    -fx-text-fill: white;
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+    -fx-min-width: 260px;
+    -fx-min-height: 160px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.3), 5, 0.3, 0, 2);
+}
+
+.botoes-centro-box .botao-opcao Label {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+/* === Bloco de Permanência === */
+.bloco-permanencia {
+    -fx-background-color: #0A4A78;
+    -fx-background-radius: 10 0 0 0px;
+    -fx-padding: 10px;
+    -fx-min-width: 260px;
+    -fx-min-height: 160px;
+    -fx-alignment: center;
+}
+
+.permanencia-titulo {
+    -fx-text-fill: white;
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+}
+
+.permanencia-tempo {
+    -fx-text-fill: white;
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+}
+
+
+

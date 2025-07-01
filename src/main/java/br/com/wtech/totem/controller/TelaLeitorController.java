@@ -18,7 +18,33 @@ public class TelaLeitorController {
 
     @FXML
     private void handleLogoClick(MouseEvent event) {
-        System.out.println("Logo clicada! Voltando para TelaInicial em fullscreen.");
+        System.out.println("Passando de página");
+
+        String fxmlPath = "/fxml/tela_processando.fxml";
+        URL url = getClass().getResource(fxmlPath);
+        if (url == null) {
+            System.err.println("Não encontrou: " + fxmlPath);
+            return;
+        }
+
+        try {
+            Parent telaProcessando = new FXMLLoader(url).load();
+            Scene sceneProcessando = new Scene(telaProcessando);
+
+            Stage stage = (Stage) imgLogo.getScene().getWindow();
+            stage.setScene(sceneProcessando);
+            stage.setFullScreen(true);
+
+            stage.show();
+        } catch (IOException e) {
+            System.err.println("Erro ao carregar " + fxmlPath);
+            e.printStackTrace();
+        }
+    }
+
+    @FXML
+    private void handleCancelar(javafx.event.Event event) {
+        System.out.println("Voltando para a tela inicial");
 
         String fxmlPath = "/fxml/tela_inicial.fxml";
         URL url = getClass().getResource(fxmlPath);
@@ -33,10 +59,7 @@ public class TelaLeitorController {
 
             Stage stage = (Stage) imgLogo.getScene().getWindow();
             stage.setScene(sceneInicial);
-
-            // garante que a TelaInicial volte em fullscreen
             stage.setFullScreen(true);
-
             stage.show();
         } catch (IOException e) {
             System.err.println("Erro ao carregar " + fxmlPath);
