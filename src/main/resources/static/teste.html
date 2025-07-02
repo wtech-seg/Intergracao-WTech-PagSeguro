@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Teste PagSeguro DirectPayment</title>
+    <!-- Carrega o JS diretamente da produção (sem clicklogger quebrado) -->
+    <script src="https://stc.pagseguro.uol.com.br/pagseguro/api/v2/checkout/pagseguro.directpayment.js"></script>
+</head>
+<body>
+<h1>Gerar cardToken PagSeguro</h1>
+
+<!-- Os INPUTS que o seu JS vai usar -->
+<div>
+    <label>Número do Cartão:</label>
+    <input type="text" id="cardNumber"   value="4111111111111111"><br>
+
+    <label>CVV:</label>
+    <input type="text" id="cardCvv"      value="123"><br>
+
+    <label>Exp. Mês:</label>
+    <input type="text" id="cardExpMonth" value="12"><br>
+
+    <label>Exp. Ano:</label>
+    <input type="text" id="cardExpYear"  value="2026"><br>
+
+    <button id="btnGenerate">Gerar Token</button>
+</div>
+
+<pre id="output"></pre>
+
+<script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 1) Busca um sessionId novo
+      const resp = await fetch('/api/session');
+      const { sessionId } = await resp.json();
+
+      // 2) Inicializa o PagSeguro
+      PagSeguroDirectPayment.setSessionId(sessionId);
+
+      document.getElementById('btnGenerate').addEventListener('click', () => {
+        const number = document.getElementById('cardNumber').value.trim();
+        const cvv    = document.getElementById('cardCvv').value.trim();
+        const expM   = document.getElementById('cardExpMonth').value.trim();
+        const expY   = document.getElementById('cardExpYear').value.trim();
+
+        PagSeguroDirectPayment.getBrand({
+          cardBin: number.substring(0,6),
+          success: ({ brand }) => {
+            PagSeguroDirectPayment.createCardToken({
+              cardNumber: number,
+              brand:      brand.name,
+              cvv, expirationMonth: expM, expirationYear: expY
+            }, {
+              success: ({ card }) => {
+                document.getElementById('output').textContent =
+                  'cardToken: ' + card.token;
+              },
+              error: err => {
+                document.getElementById('output').textContent =
+                  'Erro no token: ' + JSON.stringify(err);
+              }
+            });
+          },
+          error: err => {
+            document.getElementById('output').textContent =
+              'Erro getBrand: ' + JSON.stringify(err);
+          }
+        });
+      });
+    });
+</script>
+</body>
+</html>
