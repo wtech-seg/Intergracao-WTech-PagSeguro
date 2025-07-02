@@ -1,5 +1,8 @@
 package br.com.wtech.totem;
 
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
@@ -10,14 +13,19 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 //setx PAGSEGURO_TOKEN "450ede88-fdc2-4a1c-9eaf-e5f6eb3a00ed71f329e74d06a61e87ab82b4af5092127f50-b94f-43e7-895d-75923e0ec87b"
 
 @SpringBootApplication
-public class Application {
+public class Application extends javafx.application.Application {
+    @Override
+    public void start(Stage stage) throws Exception {
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/tela_inicial.fxml"));
+        Scene scene = new Scene(fxmlLoader.load(), 800, 600);
+        stage.setScene(scene);
+        stage.setFullScreen(true); // Para tela cheia no totem
+        stage.setTitle("Totem de Estacionamento");
+        stage.show();
+    }
+
     public static void main(String[] args) {
-        System.out.println("TOKEN DO PAGSEGURO: " + System.getenv("PAGSEGURO_TOKEN"));
-        System.out.println("Login DO PAGSEGURO: " + System.getenv("PAGSEGURO_EMAIL"));
+        launch();
         SpringApplication.run(Application.class, args);
     }
 }
-
-
-
-
