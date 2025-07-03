@@ -24,7 +24,8 @@ public class PaymentController {
                     req.getAmountInCents(),
                     req.getEncryptedCard(),
                     req.getHolderName(),
-                    req.getHolderTaxId()
+                    req.getHolderTaxId(),
+                    req.getHolderEmail()
             );
             return ResponseEntity.ok().body(Map.of("status", chargeStatus));
         } catch (Exception e) {

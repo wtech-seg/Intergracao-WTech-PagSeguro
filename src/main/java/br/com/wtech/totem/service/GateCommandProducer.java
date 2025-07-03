@@ -1,7 +1,7 @@
 // src/main/java/br/com/wtech/totem/service/GateCommandProducer.java
 package br.com.wtech.totem.service;
 
-import br.com.wtech.totem.entity.AceComando;
+import br.com.wtech.totem.entity.Command;
 import br.com.wtech.totem.repository.AceComandoRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -23,7 +23,7 @@ public class GateCommandProducer {
      * Insere na tabela ace_comandos um OPEN_GATE pendente (status = 0).
      */
     public void enqueueOpenGate(String ticketCode) {
-        AceComando cmd = new AceComando();
+        Command cmd = new Command();
         cmd.setCommand("OPEN_GATE");
         cmd.setTicketCode(ticketCode);
         cmd.setDeviceCode(deviceCode);

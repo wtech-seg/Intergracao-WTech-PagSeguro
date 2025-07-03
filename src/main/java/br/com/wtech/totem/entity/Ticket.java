@@ -5,24 +5,24 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "tickets")
+@Table(name = "est_tickets")
 public class Ticket {
 
     @Id
-    @Column(name = "code", length = 50)
+    @Column(name = "cd_ticket", length = 50)
     private String code;
 
-    @Column(name = "entry_time", nullable = false)
+    @Column(name = "dt_inicial", nullable = false)
     private LocalDateTime entryTime;
 
-    @Column(name = "exit_time")
+    @Column(name = "dt_final")
     private LocalDateTime exitTime;
 
     /**
      * status no banco:
      * 1=GERADO, 2=CORTESIA, 3=PAGO, 4=LIDO_SAIDA, 5=CANCELADO
      */
-    @Column(name = "status", nullable = false)
+    @Column(name = "fl_status", nullable = false)
     private Integer status;
 
     // getters e setters

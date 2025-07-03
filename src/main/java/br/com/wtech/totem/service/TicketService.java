@@ -32,11 +32,12 @@ public class TicketService {
                             int amountInCents,
                             String encryptedCard,
                             String holderName,
-                            String holderTaxId) throws Exception {
+                            String holderTaxId,
+                            String holderEmail) throws Exception {
 
         // 1) Chama PagBank e obtém status da charge
         String chargeStatus = paymentService.createAndPayOrder(
-                ticketCode, amountInCents, encryptedCard, holderName, holderTaxId
+                ticketCode, amountInCents, encryptedCard, holderName, holderTaxId, holderEmail
         );
 
         // 2) Mapeia para o status numérico do seu ticket
