@@ -53,9 +53,8 @@ public class TicketService {
                 ticketRepo.save(ticket);
 
                 // 3.2) insere linha direta no banco em outra tabela
-                // troque "historico_pagamento" e colunas pelos nomes reais do seu schema
                 jdbc.update(
-                        "INSERT INTO ace_qr_code (no_qr_code, fl_situacao, dt_validade_ini) VALUES (?,'a',?)",
+                        "INSERT INTO ace_qr_code (no_qr_code, fl_situacao, dt_validade_ini, cd_porta) VALUES (?,'A',?,'/dev/usb/lp1')",
                         ticketCode,
                         LocalDateTime.now()
                 );
