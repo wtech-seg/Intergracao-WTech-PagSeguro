@@ -4,8 +4,8 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "ace_comandos")
-public class AceComando {
+@Table(name = "ace_tag_leitura")
+public class Command {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,24 +16,24 @@ public class AceComando {
     private String command;
 
     /** para rastrear qual ticket disparou */
-    @Column(name = "ticket_code", length = 50)
+    @Column(name = "NU_HASH_TAG", length = 50)
     private String ticketCode;
 
     /** corresponde ao DEVICE=201 que seu ExecutarComandos entende */
-    @Column(name = "device_code", nullable = false, length = 20)
+    @Column(name = "CD_PORTA", nullable = false, length = 20)
     private String deviceCode;
 
     /** 0 = pendente; 1 = executado */
     @Column(nullable = false)
     private Integer status;
 
-    @Column(name = "created_at", nullable = false)
+    @Column(name = "DML_DATA", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    @Column(name = "executed_at")
-    private LocalDateTime executedAt;
+    @Column(name = "DT_LEITURA")
+    private LocalDateTime executedAt = LocalDateTime.now();
 
-    public AceComando() {}
+    public Command() {}
 
     public Long getId() { return id; }
 

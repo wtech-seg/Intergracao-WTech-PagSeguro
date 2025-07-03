@@ -7,7 +7,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
-import java.net.http.*;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
@@ -27,9 +29,21 @@ public class PaymentService {
                                     int amountInCents,
                                     String encryptedCard,
                                     String holderName,
-                                    String holderTaxId) throws Exception {
+                                    String holderTaxId,
+                                    String holderEmail) throws Exception {
 
-        // 1) Monta o JSON do payload
+        // 0) Validação básica do e‑mail
+        if (holderEmail == null
+                || holderEmail.length() < 5
+                || holderEmail.length() > 60
+                || !holderEmail.matches("^([a-zA-Z0-9.!#$%&'*+\\\\/=?^_`{|}~-]+)@([a-zA-Z0-9-]+\\.)+[a-zA-Z]{2,}$")) {
+            throw new IllegalArgumentException("E‑mail do cliente inválido: " + holderEmail);
+        }
+
+        // Debug: imprime o e‑mail e tamanho
+        System.out.println("Email do cliente: [" + holderEmail + "] (length=" + holderEmail.length() + ")");
+
+        // 1) Monta o JSON do payload, incluindo customer
         String payload = """
         {
           "reference_id":"%s",
@@ -41,6 +55,11 @@ public class PaymentService {
               "unit_amount":%d
             }
           ],
+          "customer":{
+            "name":"%s",
+            "tax_id":"%s",
+            "email":"%s"
+          },
           "charges":[
             {
               "reference_id":"CHG-%s",
@@ -65,17 +84,20 @@ public class PaymentService {
           ]
         }
         """.formatted(
-                ticketCode,        // ex: "TKT12345"
+                ticketCode,      // ex: "TKT12345"
                 ticketCode,
-                amountInCents,     // ex: 1250
+                amountInCents,   // ex: 1250
+                holderName,      // ex: "Maria Silva"
+                holderTaxId,     // ex: "12345678909"
+                holderEmail,     // ex: "maria.silva@example.com"
                 ticketCode,
                 amountInCents,
-                encryptedCard,     // do JS
-                holderName,        // ex: "Maria Silva"
-                holderTaxId        // ex: "12345678909"
+                encryptedCard,
+                holderName,
+                holderTaxId
         );
 
-        // 2) Executa a requisição
+        // 2) Executa a requisição ao PagBank
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create("https://sandbox.api.pagseguro.com/orders"))
                 .header("Authorization", "Bearer " + token)
@@ -90,7 +112,7 @@ public class PaymentService {
                     resp.statusCode() + " - " + resp.body());
         }
 
-        // 3) Lê o status da primeira charge
+        // 3) Lê o status da primeira charge e retorna
         JsonNode root = mapper.readTree(resp.body());
         JsonNode charge = root.path("charges").get(0);
         return charge.path("status").asText();

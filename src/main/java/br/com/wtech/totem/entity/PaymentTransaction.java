@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "payment_transactions") // ajuste se quiser outro nome
+@Table(name = "est_transacoes") // ajuste se quiser outro nome
 public class PaymentTransaction {
 
     @Id

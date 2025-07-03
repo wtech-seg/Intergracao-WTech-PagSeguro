@@ -15,7 +15,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 @RequestMapping("/api")
 public class SessionController {
 
-    @Value("${pagseguro.email}")
+    @Value("suavagaarapiraca@gmail.com")
     private String email;
     @Value("${pagseguro.token}")
     private String token;
