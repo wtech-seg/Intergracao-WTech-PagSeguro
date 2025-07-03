@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.VBox?>
+
+<AnchorPane xmlns="http://javafx.com/javafx/24.0.1"
+            xmlns:fx="http://javafx.com/fxml/1"
+            fx:controller="br.com.wtech.totem.controller.TelaLeitorController"
+            fx:id="root"
+            style="-fx-background-color: #001727;"
+            stylesheets="@/css/telaBase.css">
+
+    <!-- Logo no canto superior direito -->
+    <fx:include fx:id="logoContainer"
+                source="/fxml/componentes/logo.fxml"
+                AnchorPane.topAnchor="30"
+                AnchorPane.rightAnchor="30"/>
+
+    <!-- Painel branco central -->
+    <VBox fx:id="painelPrincipal"
+          styleClass="painel-branco"
+          AnchorPane.topAnchor="100"
+          AnchorPane.bottomAnchor="100"
+          AnchorPane.leftAnchor="50"
+          AnchorPane.rightAnchor="50"
+          spacing="0">
+
+        <!-- Cabeçalho -->
+        <VBox spacing="0">
+            <HBox alignment="CENTER_LEFT" spacing="10" styleClass="cabecalho-box">
+                <ImageView fx:id="imgBarra" styleClass="cabecalho-imagem" preserveRatio="true">
+                    <image>
+                        <Image url="@/imagens/barra.png"/>
+                    </image>
+                </ImageView>
+                <Separator orientation="VERTICAL"
+                           styleClass="cabecalho-separador-vertical"
+                           VBox.vgrow="ALWAYS"/>
+                <Region HBox.hgrow="ALWAYS"/>
+                <Label text="Ticket do Estacionamento" styleClass="cabecalho-titulo"/>
+                <Region HBox.hgrow="ALWAYS"/>
+            </HBox>
+            <VBox style="-fx-padding: 10 0 0 0;">
+                <Separator orientation="HORIZONTAL" styleClass="cabecalho-separador-horizontal"/>
+            </VBox>
+        </VBox>
+
+        <!-- Texto central -->
+        <VBox alignment="CENTER" VBox.vgrow="ALWAYS">
+            <Label text="Aproxime o QR code do leitor" styleClass="label-destaque"/>
+        </VBox>
+
+        <!-- Region para empurrar o próximo elemento para baixo -->
+        <Region VBox.vgrow="ALWAYS"/>
+
+        <!-- Include do botão “Cancelar” -->
+        <fx:include fx:id="cancelarContainer"
+                    source="/fxml/componentes/botaoCancelar.fxml"/>
+    </VBox>
+
+</AnchorPane>

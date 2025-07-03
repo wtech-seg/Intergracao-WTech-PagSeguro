@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/24.0.1"
+      xmlns:fx="http://javafx.com/fxml/1"
+      fx:id="blocoPermanencia"
+      styleClass="bloco-permanencia"
+      alignment="CENTER"
+      spacing="4">
+
+    <!-- padding interno -->
+    <padding>
+        <Insets top="10" right="10" bottom="10" left="10"/>
+    </padding>
+
+    <Label text="Permanência:" styleClass="permanencia-titulo"/>
+    <Label fx:id="lblTempo" text="00:00" styleClass="permanencia-tempo"/>
+
+</VBox>

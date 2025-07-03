@@ -1,13 +1,15 @@
+// src/main/java/br/com/wtech/totem/controller/PaymentController.java
 package br.com.wtech.totem.controller;
 
+import br.com.wtech.totem.service.TicketService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import br.com.wtech.totem.service.TicketService;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
 public class PaymentController {
+
     private final TicketService ticketService;
 
     public PaymentController(TicketService ticketService) {
@@ -15,17 +17,21 @@ public class PaymentController {
     }
 
     @PostMapping("/pay")
-    public ResponseEntity<?> pay(@RequestBody Map<String, String> body) {
+    public ResponseEntity<?> pay(@RequestBody PayRequest req) {
         try {
-            String code = body.get("ticketCode");
-            int amount = Integer.parseInt(body.get("amountInCents"));
-            String token = body.get("cardToken");
-            String status = ticketService.payTicket(code, amount, token);
-            return ResponseEntity.ok(Map.of("status", status));
+            String chargeStatus = ticketService.payTicket(
+                    req.getTicketCode(),
+                    req.getAmountInCents(),
+                    req.getEncryptedCard(),
+                    req.getHolderName(),
+                    req.getHolderTaxId(),
+                    req.getHolderEmail()
+            );
+            return ResponseEntity.ok().body(Map.of("status", chargeStatus));
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+            return ResponseEntity
+                    .status(500)
+                    .body(Map.of("error", e.getMessage()));
         }
     }
-
-    // Endpoints /status e /refund podem ser adicionados de forma similar
 }
