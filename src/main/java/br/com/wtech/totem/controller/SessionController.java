@@ -17,7 +17,7 @@ public class SessionController {
 
     @Value("suavagaarapiraca@gmail.com")
     private String email;
-    @Value("${pagseguro.token}")
+    @Value("B8B9DF4E0BF2479E8676AF43AA2B5FF7")
     private String token;
 
     private final HttpClient client = HttpClient.newHttpClient();

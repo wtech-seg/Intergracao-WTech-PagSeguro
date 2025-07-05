@@ -33,6 +33,7 @@ public class TelaFormaEscolhidaController {
         Button btnCancelar = (Button) cancelarContainer.lookup("#btnCancelar");
         if (btnCancelar != null) {
             btnCancelar.setOnAction(this::handleCancelar);
+            btnCancelar.setFocusTraversable(false);
         } else {
             System.err.println("btnCancelar não encontrado!");
         }

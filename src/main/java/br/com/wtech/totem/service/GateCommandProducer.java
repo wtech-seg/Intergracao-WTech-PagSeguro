@@ -12,7 +12,7 @@ public class GateCommandProducer {
     private final AceComandoRepository repo;
 
     /** Device code configurável (ex: "201") */
-    @Value("${gate.device}")
+    @Value("201")
     private String deviceCode;
 
     public GateCommandProducer(AceComandoRepository repo) {
