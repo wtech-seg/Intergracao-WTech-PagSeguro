@@ -1,7 +1,8 @@
-// src/main/java/br/com/wtech/totem/entity/Ticket.java
 package br.com.wtech.totem.entity;
 
 import jakarta.persistence.*;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -18,23 +19,71 @@ public class Ticket {
     @Column(name = "dt_final")
     private LocalDateTime exitTime;
 
-    /**
-     * status no banco:
-     * 1=GERADO, 2=CORTESIA, 3=PAGO, 4=LIDO_SAIDA, 5=CANCELADO
-     */
+    @Column(name = "vl_final")
+    private BigDecimal finalValue;
+
+    @Column(name = "cd_tipo_pagamento")
+    private Integer tipoPagamento;
+
     @Column(name = "fl_status", nullable = false)
     private Integer status;
 
-    // getters e setters
-    public String getCode() { return code; }
-    public void setCode(String code) { this.code = code; }
+    // --- Getters e Setters ---
 
-    public LocalDateTime getEntryTime() { return entryTime; }
-    public void setEntryTime(LocalDateTime entryTime) { this.entryTime = entryTime; }
+    public String getCode() {
+        return code;
+    }
 
-    public LocalDateTime getExitTime() { return exitTime; }
-    public void setExitTime(LocalDateTime exitTime) { this.exitTime = exitTime; }
+    public void setCode(String code) {
+        this.code = code;
+    }
 
-    public Integer getStatus() { return status; }
-    public void setStatus(Integer status) { this.status = status; }
+    // Alias para uso no RowMapper
+    public String getTicketCode() {
+        return code;
+    }
+
+    public void setTicketCode(String ticketCode) {
+        this.code = ticketCode;
+    }
+
+    public LocalDateTime getEntryTime() {
+        return entryTime;
+    }
+
+    public void setEntryTime(LocalDateTime entryTime) {
+        this.entryTime = entryTime;
+    }
+
+    public LocalDateTime getExitTime() {
+        return exitTime;
+    }
+
+    public void setExitTime(LocalDateTime exitTime) {
+        this.exitTime = exitTime;
+    }
+
+    public BigDecimal getFinalValue() {
+        return finalValue;
+    }
+
+    public void setFinalValue(BigDecimal finalValue) {
+        this.finalValue = finalValue;
+    }
+
+    public Integer getTipoPagamento() {
+        return tipoPagamento;
+    }
+
+    public void setTipoPagamento(Integer tipoPagamento) {
+        this.tipoPagamento = tipoPagamento;
+    }
+
+    public Integer getStatus() {
+        return status;
+    }
+
+    public void setStatus(Integer status) {
+        this.status = status;
+    }
 }

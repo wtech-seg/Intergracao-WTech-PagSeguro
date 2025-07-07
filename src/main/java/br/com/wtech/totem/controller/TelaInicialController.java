@@ -1,12 +1,9 @@
 package br.com.wtech.totem.controller;
 
+import br.com.wtech.totem.util.NavegacaoUtil; // Importe o utilitário
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
@@ -14,12 +11,13 @@ import javafx.scene.input.KeyCode;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import org.springframework.beans.factory.annotation.Autowired; // Importe o Autowired
+import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.net.URL;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
+@Component
 public class TelaInicialController {
 
     @FXML private GridPane root;
@@ -27,22 +25,23 @@ public class TelaInicialController {
     @FXML private Label labelHora;
     @FXML private Button btnIniciar;
 
+    // 1. INJETE A DEPENDÊNCIA DO UTILITÁRIO DE NAVEGAÇÃO
+    @Autowired
+    private NavegacaoUtil navegaPara;
+
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
 
     @FXML
     public void initialize() {
-        // Ajusta o tamanho do fundo e inicia o relógio
         imgFundo.fitWidthProperty().bind(root.widthProperty());
         imgFundo.fitHeightProperty().bind(root.heightProperty().multiply(0.8));
         iniciarRelogio();
 
-        // Registra ESC para minimizar na Tela Inicial
         root.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 newScene.setOnKeyPressed(evt -> {
                     if (evt.getCode() == KeyCode.ESCAPE) {
-                        Stage stage = (Stage) root.getScene().getWindow();
-                        stage.setIconified(true);
+                        ((Stage) root.getScene().getWindow()).setIconified(true);
                     }
                 });
             }
@@ -62,38 +61,8 @@ public class TelaInicialController {
     private void handleIniciar() {
         System.out.println("Botão INICIAR pressionado!");
 
-        String fxmlPath = "/fxml/tela_leitor.fxml";
-        URL url = getClass().getResource(fxmlPath);
-        if (url == null) {
-            System.err.println(">>> NÃO achou o FXML em: " + fxmlPath);
-            return;
-        }
-
-        try {
-            Parent telaLeitor = new FXMLLoader(url).load();
-            Scene sceneLeitor = new Scene(telaLeitor);
-
-            Stage stage = (Stage) btnIniciar.getScene().getWindow();
-
-            // Remove hint e atalho de saída do fullscreen
-            stage.setFullScreenExitHint("");
-            stage.setFullScreenExitKeyCombination(null);
-
-            // Registra ESC para minimizar na Tela Leitor
-            sceneLeitor.setOnKeyPressed(evt -> {
-                if (evt.getCode() == KeyCode.ESCAPE) {
-                    stage.setIconified(true);
-                }
-            });
-
-            // Troca a cena e entra em fullscreen imediatamente
-            stage.setScene(sceneLeitor);
-            stage.setFullScreen(true);
-            stage.show();
-
-        } catch (IOException e) {
-            System.err.println("Erro ao carregar " + fxmlPath);
-            e.printStackTrace();
-        }
+        // 2. USE O UTILITÁRIO PARA TROCAR DE TELA
+        // Ele garante que o controller da próxima tela será gerenciado pelo Spring.
+        navegaPara.trocaTela("/fxml/tela_leitor.fxml", btnIniciar);
     }
 }

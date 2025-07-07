@@ -1,21 +1,31 @@
 package br.com.wtech.totem.controller;
 
+import br.com.wtech.totem.service.LeitorService;
+import br.com.wtech.totem.util.NavegacaoUtil;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
-import javafx.stage.Stage;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.net.URL;
 
+@Component
 public class TelaPagamentoSelecionadoController {
 
     @FXML private AnchorPane logoContainer;
+    @FXML private Label labelValorTotal;
+
+    @Autowired
+    private LeitorService leitorService;
+
+    @Autowired
+    private NavegacaoUtil navegaPara;
 
     @FXML
     private void initialize() {
@@ -25,30 +35,13 @@ public class TelaPagamentoSelecionadoController {
         } else {
             System.err.println("imgLogo não encontrado!");
         }
-    }
 
-    private void navegaPara(String fxmlPath, Node anyNode) {
-        URL url = getClass().getResource(fxmlPath);
-        if (url == null) {
-            System.err.println("Não encontrou: " + fxmlPath);
-            return;
-        }
-        try {
-            Parent tela = new FXMLLoader(url).load();
-            Scene cena = new Scene(tela);
-            Stage stage = (Stage) anyNode.getScene().getWindow();
-            stage.setScene(cena);
-            stage.setFullScreen(true);
-            stage.show();
-        } catch (IOException e) {
-            System.err.println("Erro ao carregar " + fxmlPath);
-            e.printStackTrace();
-        }
+        labelValorTotal.setText(leitorService.getValorTotalFormatado());
     }
 
     @FXML
     private void handleLogoClick(MouseEvent event) {
         System.out.println("Passando de página");
-        navegaPara("/fxml/tela_impressao.fxml", (Node) event.getSource());
+        navegaPara.trocaTela("/fxml/tela_impressao.fxml", (Node) event.getSource());
     }
 }

@@ -52,7 +52,7 @@
                 <Region HBox.hgrow="ALWAYS"/>
 
                 <!-- Título centralizado -->
-                <Label text="R$ 00,00" styleClass="cabecalho-titulo"/>
+                <Label fx:id="labelValorTotal" text="R$ 0,00" styleClass="cabecalho-titulo"/>
 
                 <!-- Região expansível para equilibrar o lado direito -->
                 <Region HBox.hgrow="ALWAYS"/>
@@ -68,7 +68,7 @@
 
         <!-- Texto centralizado no meio do painel -->
         <VBox alignment="CENTER" VBox.vgrow="ALWAYS">
-            <Label text="SELECIONADO VISA CREDITO"
+            <Label text="SELECIONADO PAGAMENTO"
                    styleClass="label-destaque"/>
         </VBox>
 
