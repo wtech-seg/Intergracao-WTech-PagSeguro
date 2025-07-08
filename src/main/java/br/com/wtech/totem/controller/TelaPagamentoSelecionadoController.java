@@ -1,54 +1,72 @@
 package br.com.wtech.totem.controller;
 
+import br.com.wtech.totem.service.FormaPagamentoService;
+import br.com.wtech.totem.service.LeitorService;
+import br.com.wtech.totem.service.PagamentoTEFService;
+import br.com.wtech.totem.service.ResultadoTEF;
+import br.com.wtech.totem.util.NavegacaoUtil;
+import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Node;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseEvent;
+import javafx.scene.control.Label;
 import javafx.scene.layout.AnchorPane;
-import javafx.stage.Stage;
+import javafx.util.Duration;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
-import java.io.IOException;
-import java.net.URL;
-
+@Component
 public class TelaPagamentoSelecionadoController {
 
-    @FXML private AnchorPane logoContainer;
+    @FXML private AnchorPane root;
+    @FXML private Label labelStatus;
+    @FXML private Label labelDetalhes;
+    @FXML private Label labelValorTotal;
+
+    @Autowired private NavegacaoUtil navegaPara;
+    @Autowired private LeitorService leitorService;
+    @Autowired private FormaPagamentoService formaPagamentoService;
+    @Autowired private PagamentoTEFService pagamentoTEFService;
 
     @FXML
     private void initialize() {
-        ImageView imgLogo = (ImageView) logoContainer.lookup("#imgLogo");
-        if (imgLogo != null) {
-            imgLogo.setOnMouseClicked(this::handleLogoClick);
+        labelValorTotal.setText(leitorService.getValorTotalFormatado());
+
+        ResultadoTEF resultado = pagamentoTEFService.getUltimoResultado();
+
+        // Verifica o resultado da transação para decidir o que mostrar e fazer
+        if (resultado != null && resultado.isAprovado()) {
+            processarSucesso();
         } else {
-            System.err.println("imgLogo não encontrado!");
+            processarRecusa();
         }
     }
 
-    private void navegaPara(String fxmlPath, Node anyNode) {
-        URL url = getClass().getResource(fxmlPath);
-        if (url == null) {
-            System.err.println("Não encontrou: " + fxmlPath);
-            return;
-        }
-        try {
-            Parent tela = new FXMLLoader(url).load();
-            Scene cena = new Scene(tela);
-            Stage stage = (Stage) anyNode.getScene().getWindow();
-            stage.setScene(cena);
-            stage.setFullScreen(true);
-            stage.show();
-        } catch (IOException e) {
-            System.err.println("Erro ao carregar " + fxmlPath);
-            e.printStackTrace();
-        }
+    /**
+     * Lida com o cenário de pagamento APROVADO.
+     */
+    private void processarSucesso() {
+        labelStatus.setText("APROVADO");
+        labelDetalhes.setText("Pagamento com " + formaPagamentoService.getFormaPagamento());
+
+        // Espera 3 segundos e avança para a impressão
+        PauseTransition delay = new PauseTransition(Duration.seconds(3));
+        delay.setOnFinished(event -> {
+            navegaPara.trocaTela("/fxml/tela_impressao.fxml", root);
+        });
+        delay.play();
     }
 
-    @FXML
-    private void handleLogoClick(MouseEvent event) {
-        System.out.println("Passando de página");
-        navegaPara("/fxml/tela_impressao.fxml", (Node) event.getSource());
+    /**
+     * Lida com o cenário de pagamento RECUSADO ou com erro.
+     */
+    private void processarRecusa() {
+        labelStatus.setText("RECUSADO");
+        labelDetalhes.setText("Por favor, tente novamente ou escolha outra opção.");
+
+        // Espera 4 segundos e volta para a tela de escolha de pagamento
+        PauseTransition delay = new PauseTransition(Duration.seconds(4));
+        delay.setOnFinished(event -> {
+            navegaPara.trocaTela("/fxml/tela_forma_pagamento.fxml", root);
+        });
+        delay.play();
     }
 }

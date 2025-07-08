@@ -1,10 +1,14 @@
 package br.com.wtech.totem;
 
+import javafx.application.Platform;
 import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
 import javafx.scene.Scene;
+import javafx.scene.input.KeyCombination;
 import javafx.stage.Stage;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.ConfigurableApplicationContext;
 
 //remember Set ambient variables in the final OS
 //setx PAGBANK_EMAIL "suavagaarapiraca@gmail.com"
@@ -14,18 +18,45 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class Application extends javafx.application.Application {
+
+    private ConfigurableApplicationContext springContext;
+    private Parent root;
+
+    @Override
+    public void init() throws Exception {
+        // 1. Inicia o Spring e guarda o contexto
+        springContext = SpringApplication.run(Application.class);
+
+        // 2. Prepara o loader para a primeira tela
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/tela_inicial.fxml"));
+
+        // 3. A LINHA MAIS IMPORTANTE: Conecta o loader com o Spring
+        fxmlLoader.setControllerFactory(springContext::getBean);
+
+        // 4. Carrega a interface
+        root = fxmlLoader.load();
+    }
+
     @Override
     public void start(Stage stage) throws Exception {
-        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("/fxml/tela_inicial.fxml"));
-        Scene scene = new Scene(fxmlLoader.load(), 800, 600);
+        stage.setFullScreenExitHint("");
+        stage.setFullScreenExitKeyCombination(KeyCombination.NO_MATCH);
+        Scene scene = new Scene(root);
         stage.setScene(scene);
-        stage.setFullScreen(true); // Para tela cheia no totem
+        stage.setFullScreen(true);
         stage.setTitle("Totem de Estacionamento");
         stage.show();
     }
 
+    @Override
+    public void stop() {
+        // Encerra o Spring de forma limpa
+        springContext.close();
+        Platform.exit();
+    }
+
     public static void main(String[] args) {
-        SpringApplication.run(Application.class, args);
-        launch();
+        // Apenas inicia o ciclo de vida do JavaFX
+        launch(args);
     }
 }

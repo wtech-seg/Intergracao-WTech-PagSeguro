@@ -53,7 +53,7 @@
                 <Region HBox.hgrow="ALWAYS"/>
 
                 <!-- Título centralizado -->
-                <Label text="R$ 00,00" styleClass="cabecalho-titulo"/>
+                <Label fx:id="labelValorTotal" text="R$ 0,00" styleClass="cabecalho-titulo"/>
 
                 <!-- Região expansível para equilibrar o lado direito -->
                 <Region HBox.hgrow="ALWAYS"/>
@@ -77,7 +77,8 @@
             <HBox alignment="CENTER" spacing="40" styleClass="botoes-centro-box">
                 <Button fx:id="btnDebito"
                         onAction="#handleDebito"
-                        styleClass="botao-opcao">
+                        styleClass="botao-opcao"
+                        focusTraversable="false">
                     <graphic>
                         <VBox alignment="CENTER" spacing="8">
                             <ImageView fitWidth="48" fitHeight="48" preserveRatio="true">
@@ -92,7 +93,8 @@
 
                 <Button fx:id="btnCredito"
                         onAction="#handleCredito"
-                        styleClass="botao-opcao">
+                        styleClass="botao-opcao"
+                        focusTraversable="false">
                     <graphic>
                         <VBox alignment="CENTER" spacing="8">
                             <ImageView fitWidth="48" fitHeight="48" preserveRatio="true">
@@ -107,7 +109,8 @@
 
                 <Button fx:id="btnPix"
                         onAction="#handlePix"
-                        styleClass="botao-opcao">
+                        styleClass="botao-opcao"
+                        focusTraversable="false">
                     <graphic>
                         <VBox alignment="CENTER" spacing="8">
                             <ImageView fitWidth="48" fitHeight="48" preserveRatio="true">

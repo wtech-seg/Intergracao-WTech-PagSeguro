@@ -52,7 +52,7 @@
                 <Region HBox.hgrow="ALWAYS"/>
 
                 <!-- Título centralizado -->
-                <Label text="R$ 00,00" styleClass="cabecalho-titulo"/>
+                <Label fx:id="labelValorTotal" text="R$ 0,00" styleClass="cabecalho-titulo"/>
 
                 <!-- Região expansível para equilibrar o lado direito -->
                 <Region HBox.hgrow="ALWAYS"/>
@@ -67,9 +67,9 @@
         </VBox>
 
         <!-- Texto centralizado no meio do painel -->
-        <VBox alignment="CENTER" VBox.vgrow="ALWAYS">
-            <Label text="SELECIONADO VISA CREDITO"
-                   styleClass="label-destaque"/>
+        <VBox alignment="CENTER" spacing="10" VBox.vgrow="ALWAYS">
+            <Label fx:id="labelStatus" text="Processando..." styleClass="label-destaque"/>
+            <Label fx:id="labelDetalhes" text="Aguarde um momento" styleClass="label-detalhes"/>
         </VBox>
 
         <!-- Rodapé: separar cancelar e bloco de permanência -->

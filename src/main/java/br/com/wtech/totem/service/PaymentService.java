@@ -16,7 +16,7 @@ import java.util.UUID;
 @Service
 public class PaymentService {
 
-    @Value("${pagbank.token}")
+    @Value("B8B9DF4E0BF2479E8676AF43AA2B5FF7")
     private String token;
 
     private final HttpClient http = HttpClient.newHttpClient();
