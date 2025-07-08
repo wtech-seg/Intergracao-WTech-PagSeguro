@@ -1,5 +1,6 @@
 package br.com.wtech.totem.controller;
 
+import br.com.wtech.totem.service.PagamentoTEFService;
 import br.com.wtech.totem.util.NavegacaoUtil;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
@@ -45,6 +46,9 @@ public class TelaNotaFiscalController {
     @Autowired
     private NavegacaoUtil navegaPara;
 
+    @Autowired
+    private PagamentoTEFService pagamentoTEFService;
+
     @FXML
     private void handleLogoClick(MouseEvent event) {
         System.out.println("Passando de página");
@@ -54,6 +58,7 @@ public class TelaNotaFiscalController {
     @FXML
     private void handleCancelar(ActionEvent event) {
         System.out.println("Voltando para a tela inicial");
+        pagamentoTEFService.solicitarCancelamento();
         navegaPara.trocaTela("/fxml/tela_inicial.fxml", (Node) event.getSource());
     }
 

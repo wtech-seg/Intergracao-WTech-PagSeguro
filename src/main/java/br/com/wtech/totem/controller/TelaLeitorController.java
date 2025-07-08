@@ -2,6 +2,7 @@ package br.com.wtech.totem.controller;
 
 import br.com.wtech.totem.entity.Ticket;
 import br.com.wtech.totem.service.LeitorService;
+import br.com.wtech.totem.service.PagamentoTEFService;
 import br.com.wtech.totem.util.NavegacaoUtil;
 import javafx.animation.PauseTransition; // Importe a classe PauseTransition
 import javafx.application.Platform;
@@ -32,6 +33,9 @@ public class TelaLeitorController {
     @Autowired
     private LeitorService leitorService;
 
+    @Autowired
+    private PagamentoTEFService pagamentoTEFService;
+
     @FXML
     private void initialize() {
         // ... seu código initialize permanece o mesmo ...
@@ -55,6 +59,8 @@ public class TelaLeitorController {
 
     @FXML
     private void handleCancelar(ActionEvent event) {
+        System.out.println("Voltando para a tela inicial");
+        pagamentoTEFService.solicitarCancelamento();
         navegaPara.trocaTela("/fxml/tela_inicial.fxml", (Node) event.getSource());
     }
 

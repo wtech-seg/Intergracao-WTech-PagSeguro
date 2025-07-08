@@ -67,10 +67,8 @@
 
         <!-- Texto centralizado no meio do painel -->
         <VBox alignment="CENTER" VBox.vgrow="ALWAYS">
-            <Label text="Processando..."
-                   styleClass="label-destaque"/>
-            <Label text="Aguarde"
-                   styleClass="label-destaque"/>
+            <Label text="Processando..." styleClass="label-destaque"/>
+            <Label text="Aguarde um momento" styleClass="label-detalhes"/>
         </VBox>
     </VBox>
 </AnchorPane>

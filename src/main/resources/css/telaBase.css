@@ -121,5 +121,12 @@
     -fx-font-weight: bold;
 }
 
+/* Estilo para o texto de detalhe */
+.label-detalhes {
+    -fx-font-size: 48px;
+    -fx-text-fill: #000000;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 4, 0.3, 2, 2);/* Um cinza escuro */
+}
+
 
 
