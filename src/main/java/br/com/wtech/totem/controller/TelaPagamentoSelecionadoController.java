@@ -47,6 +47,9 @@ public class TelaPagamentoSelecionadoController {
         labelStatus.setText("APROVADO");
         labelDetalhes.setText("Pagamento com " + formaPagamentoService.getFormaPagamento());
 
+        System.out.println("PAGAMENTO APROVADO: Atualizando status do ticket para 3.");
+        leitorService.atualizarStatusParaPago();
+
         // Espera 3 segundos e avança para a impressão
         PauseTransition delay = new PauseTransition(Duration.seconds(3));
         delay.setOnFinished(event -> {
