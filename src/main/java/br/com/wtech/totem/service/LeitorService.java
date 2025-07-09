@@ -74,6 +74,21 @@ public class LeitorService {
             ticketAtual.setExitTime(this.dataDaLeitura);
         }
     }
+    /**
+     * Atualiza o status do ticket atual para 3 (PAGO).
+     * Chamado quando o pagamento é aprovado.
+     */
+    public void atualizarStatusParaPago() {
+        Ticket ticket = getTicketAtual();
+        if (ticket == null) {
+            System.err.println("Erro: Não há ticket para atualizar status para PAGO.");
+            return;
+        }
+        System.out.println("Atualizando status para '3' (PAGO) no ticket: " + ticket.getTicketCode());
+        String sql = "UPDATE est_tickets SET fl_status = 3 WHERE cd_ticket = ?";
+        int linhasAfetadas = jdbc.update(sql, ticket.getTicketCode());
+        if (linhasAfetadas > 0) ticket.setStatus(3);
+    }
 
     // --- Busca o Ticket no banco pelo código lido ---
     public Ticket buscarTicket(String ticketCode) {
