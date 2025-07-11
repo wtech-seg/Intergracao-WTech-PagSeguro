@@ -33,8 +33,8 @@ public class TefService {
             resposta = tef.AguardaFuncaoMCInterativo();
             if (resposta.startsWith("[MENU]") || resposta.startsWith("[PERGUNTA]")) {
                 // exibir menu/pergunta no front e capturar input do operador...
-                String escolha = /* obter do operador */;
-                tef.ContinuaFuncaoMCInterativo(escolha);
+                //String escolha = /* obter do operador */;
+                //tef.ContinuaFuncaoMCInterativo(escolha);
             }
             if (resposta.startsWith("[ERROABORTAR]") || resposta.startsWith("[ERRODISPLAY]")) {
                 tef.CancelarFluxoMCInterativo();

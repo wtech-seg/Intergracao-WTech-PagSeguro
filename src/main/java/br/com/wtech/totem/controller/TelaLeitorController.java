@@ -71,7 +71,7 @@ public class TelaLeitorController {
             return;
         }
 
-        String valorLido = inputLeitura.getText();
+        String valorLido = "311";
         if (valorLido == null || valorLido.isBlank()) {
             return;
         }
