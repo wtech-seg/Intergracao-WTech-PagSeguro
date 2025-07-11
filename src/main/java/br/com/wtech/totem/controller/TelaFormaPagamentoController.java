@@ -30,23 +30,12 @@ public class TelaFormaPagamentoController {
     @FXML private Button btnCredito;
     @FXML private Button btnPix;
 
-    @FXML private TextField ticketCodeField;   // caso vc tenha um campo de cupom/ticket
-    @FXML private TextField amountField;       // ex.: "1000" para R$ 10,00
-    @FXML private TextArea receiptArea;       // pra exibir o retorno/recibo
-
     private final TefClientMCLibrary tef = TefClientMCLibrary.INSTANCE;
 
-    @Autowired
-    private NavegacaoUtil navegaPara;
-
-    @Autowired
-    private LeitorService leitorService;
-
-    @Autowired
-    private FormaPagamentoService formaPagamentoService;
-
-    @Autowired
-    private PagamentoTEFService pagamentoTEFService; // Injete o serviço de pagamento
+    @Autowired private NavegacaoUtil navegaPara;
+    @Autowired private LeitorService leitorService;
+    @Autowired private FormaPagamentoService formaPagamentoService;
+    @Autowired private PagamentoTEFService pagamentoTEFService;
 
     @FXML
     private void initialize() {
@@ -65,7 +54,7 @@ public class TelaFormaPagamentoController {
         if (btnCredito != null) btnCredito.setFocusTraversable(false);
         if (btnPix != null) btnPix.setFocusTraversable(false);
 
-        labelValorTotal.setText(leitorService.getValorTotalFormatado());
+        labelValorTotal.setText(leitorService.getValorTotalFormatado()); // continua funcionando!
     }
 
     @FXML
@@ -84,10 +73,7 @@ public class TelaFormaPagamentoController {
     private void handleDebito(ActionEvent event) {
         System.out.println("BOTÃO Débito: TESTANDO CENÁRIO DE RECUSA.");
         iniciarFluxoTef(2);
-        // Diz ao serviço para simular uma falha na próxima transação
         pagamentoTEFService.simularProximoComoRecusado(true);
-
-        // O resto do código permanece o mesmo
         formaPagamentoService.setFormaPagamento("Débito");
         navegaPara.trocaTela("/fxml/tela_forma_escolhida.fxml", (Node) event.getSource());
     }
@@ -96,9 +82,7 @@ public class TelaFormaPagamentoController {
     private void handleCredito(ActionEvent event) {
         System.out.println("BOTÃO Crédito: TESTANDO CENÁRIO DE SUCESSO.");
         iniciarFluxoTef(1);
-        // Diz ao serviço para simular um sucesso na próxima transação
         pagamentoTEFService.simularProximoComoRecusado(false);
-
         formaPagamentoService.setFormaPagamento("Crédito");
         navegaPara.trocaTela("/fxml/tela_forma_escolhida.fxml", (Node) event.getSource());
     }
@@ -114,50 +98,40 @@ public class TelaFormaPagamentoController {
 
     private void iniciarFluxoTef(int operacao) {
         try {
-            // 1) lê cupom e valor
-            String ticket = ticketCodeField.getText();
-            int cents     = Integer.parseInt(amountField.getText());
+            String ticket = leitorService.getTicketAtual().getTicketCode();
+            int cents     = leitorService.getVlFinal(); // em centavos
             String valor  = formatarValor(cents);
 
-            // 2) gera NSU e data
-            String nsu  = UUID.randomUUID()
-                    .toString()
-                    .replace("-", "")
-                    .substring(0, 8)
-                    .toUpperCase();
-            String data = LocalDate.now()
-                    .format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            String nsu  = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+            String data = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
 
-            // 3) Inicia função TEF
             int ret = tef.IniciaFuncaoMCInterativo(
                     operacao,
-                    "12345678000100",  // seu CNPJ
-                    1,                 // parcelas (1 = à vista)
+                    "60177876000130",
+                    1,
                     ticket,
                     valor,
                     nsu,
                     data,
-                    "1",               // número PDV
-                    "001",             // código loja
-                    0,                 // tipo comunicação
+                    "1",
+                    "167",
+                    0,
                     ""
             );
+
             if (ret != 0) throw new RuntimeException("Erro IniciaFuncao: " + ret);
 
-            // 4) Loop de interação
             String resp;
             while (true) {
                 resp = tef.AguardaFuncaoMCInterativo();
 
                 if (resp.startsWith("[MENU]")) {
-                    // montar e exibir ChoiceDialog
                     String[] ops = resp.substring(6).split("\\|");
                     ChoiceDialog<String> dlg = new ChoiceDialog<>(ops[1], ops);
                     dlg.setTitle("TEF – Menu");
                     dlg.setHeaderText("Escolha opção");
                     String escolha = dlg.showAndWait()
-                            .orElseThrow(() ->
-                                    new RuntimeException("Operador cancelou"));
+                            .orElseThrow(() -> new RuntimeException("Operador cancelou"));
                     tef.ContinuaFuncaoMCInterativo(escolha);
 
                 } else if (resp.startsWith("[PERGUNTA]")) {
@@ -166,25 +140,18 @@ public class TelaFormaPagamentoController {
                     dlg.setTitle("TEF – Pergunta");
                     dlg.setHeaderText(pergunta);
                     String ans = dlg.showAndWait()
-                            .orElseThrow(() ->
-                                    new RuntimeException("Operador cancelou"));
+                            .orElseThrow(() -> new RuntimeException("Operador cancelou"));
                     tef.ContinuaFuncaoMCInterativo(ans);
 
                 } else if (resp.startsWith("[MSG]")) {
-                    // mensagem informativa
-                    new Alert(Alert.AlertType.INFORMATION, resp.substring(5))
-                            .showAndWait();
+                    new Alert(Alert.AlertType.INFORMATION, resp.substring(5)).showAndWait();
 
                 } else if (resp.startsWith("[ERROABORTAR]") || resp.startsWith("[ERRODISPLAY]")) {
-                    // aborta e sai
                     tef.CancelarFluxoMCInterativo();
                     throw new RuntimeException("Erro TEF: " + resp);
 
                 } else if (resp.startsWith("[RETORNO]")) {
-                    // chegou o comprobante
-                    receiptArea.setText(resp);
-
-                    // 5) confirma (98) – ou 99 para desfazer
+                    // Aqui você poderia logar ou salvar o recibo, se quiser
                     tef.FinalizaFuncaoMCInterativo(
                             98,
                             "12345678000100",
@@ -208,10 +175,9 @@ public class TelaFormaPagamentoController {
     }
 
     private String formatarValor(int cents) {
-        var bd    = java.math.BigDecimal.valueOf(cents, 2);
-        var fmt   = new java.text.DecimalFormat("0.00",
-                new java.text.DecimalFormatSymbols(new java.util.Locale("pt","BR")));
+        var bd  = java.math.BigDecimal.valueOf(cents, 2);
+        var fmt = new java.text.DecimalFormat("0.00",
+                new java.text.DecimalFormatSymbols(new java.util.Locale("pt", "BR")));
         return fmt.format(bd).replace('.', ',');
     }
 }
-
