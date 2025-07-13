@@ -2,16 +2,13 @@
 package br.com.wtech.totem.controller;
 
 import br.com.wtech.totem.service.TefService;
+import br.com.wtech.totem.service.TicketService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.text.DecimalFormat;
-import java.text.DecimalFormatSymbols;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -19,9 +16,9 @@ import java.util.UUID;
 @RequestMapping("/api")
 public class PaymentController {
 
-    private final TefService tefService;
+    private final TefService   tefService;
+    private final TicketService ticketService;
 
-    // Valores configuráveis em application.properties
     @Value("${tef.cnpj}")
     private String tefCnpj;
 
@@ -31,31 +28,29 @@ public class PaymentController {
     @Value("${tef.codigo-loja}")
     private String codigoLoja;
 
-    public PaymentController(TefService tefService) {
-        this.tefService = tefService;
+    public PaymentController(TefService tefService,
+                             TicketService ticketService) {
+        this.tefService    = tefService;
+        this.ticketService = ticketService;
     }
 
     @PostMapping("/pay")
     public ResponseEntity<?> pay(@RequestBody PayRequest req) {
         try {
-            // 1) Gera NSU único (8 chars hex) e data no formato yyyyMMdd
-            String nsu  = UUID.randomUUID()
-                    .toString()
-                    .replace("-", "")
-                    .substring(0, 8)
-                    .toUpperCase();
-            String data = LocalDate.now()
-                    .format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+            // 1) Gera NSU e data
+            String nsu  = UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase();
+            String data = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
 
-            // 2) Formata valor (em centavos) para "0,00"
-            String valorFormatado = formatarValor(req.getAmountInCents());
+            // 2) Formata valor (em centavos -> string com vírgula)
+            String valorFormatado = String.format("%d", req.getAmountInCents());
+            // (a sua DLL pode já aceitar o valor em centavos direto)
 
-            // 3) Invoca o fluxo TEF (código 1 = crédito à vista)
-            String retorno = tefService.processarPagamento(
-                    1,               // operação (1 = crédito à vista)
-                    tefCnpj,         // seu CNPJ
-                    1,               // parcelas (sempre 1 para à vista)
-                    req.getTicketCode(), // cupom (você pode usar ticketCode)
+            // 3) Executa TEF
+            String tefResponse = tefService.processarPagamento(
+                    1,                    // operação (1 = crédito à vista)
+                    tefCnpj,
+                    1,                    // parcelas
+                    req.getTicketCode(),  // cupom
                     valorFormatado,
                     nsu,
                     data,
@@ -63,7 +58,14 @@ public class PaymentController {
                     codigoLoja
             );
 
-            return ResponseEntity.ok(Map.of("status", retorno));
+            // 4) Atualiza o ticket e histórico
+            ticketService.payTicket(
+                    req.getTicketCode(),
+                    req.getAmountInCents(),
+                    tefResponse
+            );
+
+            return ResponseEntity.ok(Map.of("status", tefResponse));
         } catch (Exception e) {
             return ResponseEntity
                     .status(500)
@@ -71,12 +73,14 @@ public class PaymentController {
         }
     }
 
-    private String formatarValor(int amountInCents) {
-        BigDecimal valor = BigDecimal.valueOf(amountInCents, 2);
-        DecimalFormatSymbols symbols = new DecimalFormatSymbols(new Locale("pt", "BR"));
-        symbols.setDecimalSeparator(',');
-        DecimalFormat fmt = new DecimalFormat("0.00", symbols);
-        // substitui ponto por vírgula
-        return fmt.format(valor).replace('.', ',');
+    // DTO interno para receber JSON
+    public static class PayRequest {
+        private String ticketCode;
+        private int    amountInCents;
+        // getters & setters
+        public String getTicketCode() { return ticketCode; }
+        public void setTicketCode(String c) { this.ticketCode = c; }
+        public int getAmountInCents() { return amountInCents; }
+        public void setAmountInCents(int v) { this.amountInCents = v; }
     }
 }
