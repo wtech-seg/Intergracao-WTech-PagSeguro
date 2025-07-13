@@ -13,62 +13,46 @@ import java.time.LocalDateTime;
 public class TicketService {
 
     private final TicketRepository ticketRepo;
-    private final PaymentService paymentService;
     private final JdbcTemplate jdbc;
 
     public TicketService(TicketRepository ticketRepo,
-                         PaymentService paymentService,
                          JdbcTemplate jdbc) {
-        this.ticketRepo     = ticketRepo;
-        this.paymentService = paymentService;
-        this.jdbc           = jdbc;
+        this.ticketRepo = ticketRepo;
+        this.jdbc       = jdbc;
     }
 
     /**
-     * Executa o pagamento e, se for PAID, atualiza o ticket (status=3), grava exitTime
-     * e insere diretamente no histórico de pagamentos.
+     * Atualiza o ticket no banco conforme o retorno da TEF.
+     * Se tefResponse indicar sucesso (começa com "[RETORNO]"), marca como PAGO (status=3),
+     * grava exitTime e insere no histórico; caso contrário, marca como CANCELADO (status=5).
      */
     @Transactional
-    public String payTicket(String ticketCode,
-                            int amountInCents,
-                            String encryptedCard,
-                            String holderName,
-                            String holderTaxId, String holderEmail) throws Exception {
+    public void payTicket(String ticketCode,
+                          int amountInCents,
+                          String tefResponse) {
 
-        // 1) chama PagBank e obtém status
-        String chargeStatus = paymentService.createAndPayOrder(
-                ticketCode, amountInCents, encryptedCard, holderName, holderTaxId, holderEmail
-        );
-
-        // 2) busca o ticket
+        // 1) Busca o ticket
         Ticket ticket = ticketRepo.findById(ticketCode)
                 .orElseThrow(() -> new RuntimeException("Ticket não encontrado: " + ticketCode));
 
-        // 3) lógica por status
-        switch (chargeStatus) {
-            case "PAID":
-                // 3.1) atualiza o ticket
-                ticket.setStatus(3);  // PAGO
-                ticket.setExitTime(LocalDateTime.now());
-                ticketRepo.save(ticket);
+        // 2) Decide pelo status
+        if (tefResponse.startsWith("[RETORNO]")) {
+            // pago
+            ticket.setStatus(3);              // PAGO
+            ticket.setExitTime(LocalDateTime.now());
+            ticketRepo.save(ticket);
 
-                // 3.2) insere linha direta no banco em outra tabela
-                jdbc.update(
-                        "INSERT INTO ace_qr_code (no_qr_code, fl_situacao, dt_validade_ini, cd_porta) VALUES (?,'A',?,'/dev/usb/lp1')",
-                        ticketCode,
-                        LocalDateTime.now()
-                );
-                break;
-
-            case "CANCELED":
-                ticket.setStatus(5);  // CANCELADO
-                ticketRepo.save(ticket);
-                break;
-
-            default:
-                throw new IllegalStateException("Status inesperado: " + chargeStatus);
+            // insere no histórico (ajuste a tabela/colunas conforme seu schema)
+            jdbc.update(
+                    "INSERT INTO ace_qr_code_historico (no_qr_code, dt_pagamento, valor_cents) VALUES (?,?,?)",
+                    ticketCode,
+                    LocalDateTime.now(),
+                    amountInCents
+            );
+        } else {
+            // cancelado
+            ticket.setStatus(5);              // CANCELADO
+            ticketRepo.save(ticket);
         }
-
-        return chargeStatus;
     }
 }
