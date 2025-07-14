@@ -1,68 +1,81 @@
-# Self-Pay-Integration
 
-Totem de Autopagamento de Estacionamento Drive-Thru usando Java, Spring Boot e PagSeguro.
+# Integração WTech com PagSeguro
 
-## Estrutura do Projeto
+Este projeto tem como objetivo integrar sistemas da **WTech** com a API de pagamentos da **PagSeguro**, utilizando uma **DLL própria de comunicação**. O foco principal é facilitar pagamentos com cartão (crédito/débito), especialmente em contextos como totens de autoatendimento.
+
+## 📦 Estrutura do Projeto
 
 ```
-Self-Pay-Integration/
-├── pom.xml                     # Configurações Maven, dependências Spring Boot, PagSeguro e JavaFX
-├── src/main/java/
-│   └── br/com/wtech/totem/
-│       ├── Application.java    # Ponto de entrada Spring Boot
-│       ├── PaymentService.java # Comunicação com PagSeguro (Checkout Transparente v2)
-│       ├── entity/
-│       │   └── Ticket.java      # Entidade JPA para armazenar status do ticket
-│       ├── repository/
-│       │   └── TicketRepository.java
-│       ├── service/
-│       │   ├── GateService.java   # Libera a cancela (stub para hardware)
-│       │   └── TicketService.java # Lógica de pagamento, persiste e aciona cancela
-│       └── controller/
-│           └── PaymentController.java # Endpoints REST (/api/pay, ...)
-└── README.md                   # Documentação do projeto (este arquivo)
+├── src/
+│   ├── main/
+│   │   └── java/br/com/wtech/totem/
+│   │       ├── controller/
+│   │       ├── entity/
+│   │       ├── repository/
+│   │       ├── service/
+│   │       └── WtechTotemApplication.java
+├── lib/
+│   └── pagseguro.dll  # DLL de integração com o terminal
+├── resources/
+│   └── application.yml
+├── pom.xml
+└── README.md
 ```
 
-## Tecnologias
+## ⚙️ Tecnologias Utilizadas
 
-* **Java 17**
-* **Spring Boot 3.1.4**
+- **Java 17**
+- **Spring Boot**
+- **Maven**
+- **JDBC Template**
+- **DLL nativa para integração com POS**
+- **PagSeguro SDK / APIs**
 
-    * Spring Web (REST)
-    * Spring Data JPA (persistência)
-* **PagSeguro Checkout Transparente v2** (form-urlencoded + XML)
-* **H2 Database** (ambiente de testes)
-* **JavaFX 20** (frontend desktop, Windows)
+## 🚀 Funcionalidades
 
-## Funcionalidades
+- Comunicação direta com o terminal PagSeguro via DLL
+- Execução de transações com cartão (débito/crédito)
+- Consulta e manipulação de tickets de pagamento
+- Inserção de registros no banco de dados e histórico de pagamentos
+- Integração com sistemas WTech existentes
 
-1. **`/api/pay`**: Recebe `{ ticketCode, amountInCents, cardToken }`, executa pagamento, marca ticket pago e abre cancela.
-2. **`PaymentService`**: Monta e envia requisição ao PagSeguro, faz parsing do XML de retorno.
-3. **`TicketService`**: Persiste status do ticket e aciona `GateService`.
-4. **`GateService`**: Stub para liberar hardware da cancela.
+## 🧪 Como executar
 
-## Como Rodar
+### Pré-requisitos
 
-1. Defina variáveis de ambiente para sandbox:
-````
-env PAGSEGURO\_EMAIL=[seu-email@sandbox.pagseguro.uol.com.br](mailto:seu-email@sandbox.pagseguro.uol.com.br)
-env PAGSEGURO\_TOKEN=seu-token-de-sandbox
-````
-2. Compile e execute:
-````
-mvn clean package
-mvn spring-boot:run
-````
+- Java 17
+- Maven
+- Terminal PagSeguro configurado com a DLL compatível
+- Sistema operacional compatível com a DLL (Windows)
 
-3. API estará disponível em `http://localhost:8080/api/pay`.
+### Passos
 
-## Próximos Passos
+1. Clone o repositório:
+   ```bash
+   git clone https://github.com/wtech-seg/Intergracao-WTech-PagSeguro.git
+   cd Intergracao-WTech-PagSeguro
+   ```
 
-* Implementar endpoints `/status` e `/refund`.
-* Integrar com front-end JavaFX (controllers e views).
-* Configurar banco de produção (MySQL/PostgreSQL).
-* Homologação em ambiente de produção PagSeguro.
+2. Compile e execute a aplicação:
+   ```bash
+   mvn clean install
+   mvn spring-boot:run
+   ```
 
----
+3. A DLL `pagseguro.dll` deve estar disponível no diretório `lib/` e configurada no `java.library.path`.
 
-> **Observação**: A tela e lógica JavaFX estão iniciadas em `TelaInicialController.java`, para futura integração do front-end do totem.
+## ⚠️ Observações
+
+- Certifique-se de que o terminal esteja corretamente instalado e vinculado à aplicação.
+- A comunicação com o terminal depende da presença e correta configuração da DLL.
+- Apenas sistemas Windows são suportados nesta versão.
+
+## 👨‍💻 Desenvolvido por
+
+**Equipe de Integração - WTech**
+- E-mail: suporte@wtechbrasil.com.br
+- Site: [https://wtechbrasil.com.br](https://wtechbrasil.com.br)
+
+## 📄 Licença
+
+Este projeto é de uso interno da WTech e não está licenciado para uso externo.
