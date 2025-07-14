@@ -1,6 +1,5 @@
 package br.com.wtech.totem.controller;
 
-import br.com.wtech.totem.service.FormaPagamentoService;
 import br.com.wtech.totem.service.LeitorService;
 import br.com.wtech.totem.service.PagamentoTEFService;
 import br.com.wtech.totem.service.ResultadoTEF;
@@ -23,7 +22,6 @@ public class TelaPagamentoSelecionadoController {
 
     @Autowired private NavegacaoUtil navegaPara;
     @Autowired private LeitorService leitorService;
-    @Autowired private FormaPagamentoService formaPagamentoService;
     @Autowired private PagamentoTEFService pagamentoTEFService;
 
     @FXML
@@ -32,11 +30,11 @@ public class TelaPagamentoSelecionadoController {
 
         ResultadoTEF resultado = pagamentoTEFService.getUltimoResultado();
 
-        // Verifica o resultado da transação para decidir o que mostrar e fazer
         if (resultado != null && resultado.isAprovado()) {
             processarSucesso();
         } else {
-            processarRecusa();
+            // Se o resultado for nulo ou não aprovado, trata como recusa/erro.
+            processarRecusa(resultado);
         }
     }
 
@@ -45,12 +43,12 @@ public class TelaPagamentoSelecionadoController {
      */
     private void processarSucesso() {
         labelStatus.setText("APROVADO");
-        labelDetalhes.setText("Pagamento com " + formaPagamentoService.getFormaPagamento());
+        labelDetalhes.setText("Obrigado! Retire seu comprovante.");
 
-        System.out.println("PAGAMENTO APROVADO: Atualizando status do ticket para 3.");
+        // MANTIDO: Atualiza o status do ticket no banco de dados.
         leitorService.atualizarStatusParaPago();
 
-        // Espera 3 segundos e avança para a impressão
+        // Pausa de 3 segundos para o usuário ler a mensagem e depois avança para a impressão.
         PauseTransition delay = new PauseTransition(Duration.seconds(3));
         delay.setOnFinished(event -> {
             navegaPara.trocaTela("/fxml/tela_impressao.fxml", root);
@@ -61,11 +59,13 @@ public class TelaPagamentoSelecionadoController {
     /**
      * Lida com o cenário de pagamento RECUSADO ou com erro.
      */
-    private void processarRecusa() {
-        labelStatus.setText("RECUSADO");
-        labelDetalhes.setText("Por favor, tente novamente ou escolha outra opção.");
+    private void processarRecusa(ResultadoTEF resultado) {
+        labelStatus.setText("NÃO AUTORIZADO");
+        // Mostra o motivo, se houver, ou uma mensagem padrão.
+        String detalhes = resultado != null ? resultado.getMensagemDetalhada() : "Tente novamente.";
+        labelDetalhes.setText("Por favor, tente outra forma de pagamento. " + detalhes);
 
-        // Espera 4 segundos e volta para a tela de escolha de pagamento
+        // Pausa de 4 segundos e volta para a tela de escolha de pagamento.
         PauseTransition delay = new PauseTransition(Duration.seconds(4));
         delay.setOnFinished(event -> {
             navegaPara.trocaTela("/fxml/tela_forma_pagamento.fxml", root);

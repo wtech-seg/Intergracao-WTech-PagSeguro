@@ -5,7 +5,7 @@ package br.com.wtech.totem.service;
  * Define as operações TEF e o código inteiro que a DLL espera.
  */
 public enum TefOperation {
-    CREDIT(3),    // crédito à vista
+    CREDIT(0),    // crédito à vista
     DEBIT(1),     // débito à vista
     CANCEL(4),    // cancelamento
     REPRINT(82);  // reimpressão

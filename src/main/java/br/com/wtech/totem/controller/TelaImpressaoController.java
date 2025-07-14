@@ -4,9 +4,8 @@ import br.com.wtech.totem.service.ImpressaoService;
 import br.com.wtech.totem.service.LeitorService;
 import br.com.wtech.totem.util.NavegacaoUtil;
 import javafx.animation.PauseTransition;
-import javafx.application.Platform; // Adicione este import
 import javafx.fxml.FXML;
-import javafx.scene.control.Label; // Adicionado para o valor total
+import javafx.scene.control.Label;
 import javafx.scene.layout.AnchorPane;
 import javafx.util.Duration;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +15,7 @@ import org.springframework.stereotype.Component;
 public class TelaImpressaoController {
 
     @FXML private AnchorPane root;
-    @FXML private Label labelValorTotal; // Adicionado para exibir o valor
+    @FXML private Label labelValorTotal;
 
     @Autowired private ImpressaoService impressaoService;
     @Autowired private LeitorService leitorService;
@@ -26,29 +25,42 @@ public class TelaImpressaoController {
     private void initialize() {
         System.out.println("TELA DE IMPRESSÃO: Iniciando processos finais...");
 
-        // Executa as operações de banco de dados
-        impressaoService.registrarOperacoesDeImpressao();
-        leitorService.finalizarTicketComDataDeLeitura();
-
-        // Exibe o valor na tela
-        if(labelValorTotal != null) {
+        // Garante que o valor da compra ainda seja exibido nesta tela.
+        if (labelValorTotal != null) {
             labelValorTotal.setText(leitorService.getValorTotalFormatado());
         }
 
-        // Inicia o retorno automático para a tela inicial
+        // Executa as operações de finalização no banco de dados.
+        // É importante fazer isso antes de limpar os dados do ticket.
+        impressaoService.registrarOperacoesDeImpressao();
+        leitorService.finalizarTicketComDataDeLeitura();
+
+        // Inicia o contador para retornar automaticamente à tela inicial.
         retornarAoInicioAposDelay();
     }
 
+    /**
+     * Simula a impressão e, após um atraso, limpa o estado do sistema
+     * e volta para a tela inicial, preparando para o próximo cliente.
+     */
     private void retornarAoInicioAposDelay() {
         System.out.println("CUPOM IMPRESSO (simulação). Voltando ao início em 5 segundos.");
+
+        // Cria uma pausa de 5 segundos para o usuário ter tempo de ver a mensagem.
         PauseTransition delay = new PauseTransition(Duration.seconds(5));
+
+        // Define a ação a ser executada quando a pausa terminar.
         delay.setOnFinished(event -> {
-            // CORREÇÃO: Envolve a navegação no Platform.runLater
-            Platform.runLater(() -> {
-                leitorService.limparTicketAtual();
-                navegaPara.trocaTela("/fxml/tela_inicial.fxml", root);
-            });
+            System.out.println("Limpando dados da sessão para o próximo cliente.");
+
+            // Limpa os dados do ticket atual para que o próximo cliente comece do zero.
+            leitorService.limparTicketAtual();
+
+            // Navega de volta para a tela inicial.
+            navegaPara.trocaTela("/fxml/tela_inicial.fxml", root);
         });
+
+        // Inicia a contagem da pausa.
         delay.play();
     }
 }
