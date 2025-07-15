@@ -39,29 +39,42 @@ public class TelaFormaPagamentoController {
      * Método central para lidar com a escolha do pagamento.
      * @param forma O nome da forma de pagamento (ex: "Débito").
      * @param sourceNode O botão que acionou o evento, para contexto da navegação.
+     * Agora também recebe o código do tipo de pagamento.
      */
-    private void iniciarFluxoDePagamento(String forma, Node sourceNode) {
-        System.out.println("Forma de pagamento escolhida: " + forma);
+    private void iniciarFluxoDePagamento(String forma, int tipoPagamentoCodigo, Node sourceNode) {
+        System.out.println("Forma de pagamento escolhida: " + forma + " (Código: " + tipoPagamentoCodigo + ")");
 
-        // 1. Salva a escolha do usuário no serviço apropriado.
+        // 1. Atualiza o tipo de pagamento no banco de dados.
+        formaPagamentoService.atualizarTipoPagamentoNoBanco(tipoPagamentoCodigo);
+
+        // 2. Salva o nome da forma de pagamento no serviço para uso posterior.
         formaPagamentoService.setFormaPagamento(forma);
 
-        // 2. Navega para a primeira tela de aguarde, onde o processo TEF realmente começará.
+        // 3. Navega para a primeira tela de aguarde.
         navegaPara.trocaTela("/fxml/tela_forma_escolhida.fxml", sourceNode);
     }
 
+    /**
+     * AJUSTE: Passa o código 1 para Débito.
+     */
     @FXML
     private void handleDebito(ActionEvent event) {
-        iniciarFluxoDePagamento("Débito", (Node) event.getSource());
+        iniciarFluxoDePagamento("Débito", 1, (Node) event.getSource());
     }
 
+    /**
+     * AJUSTE: Passa o código 1 para Crédito.
+     */
     @FXML
     private void handleCredito(ActionEvent event) {
-        iniciarFluxoDePagamento("Crédito", (Node) event.getSource());
+        iniciarFluxoDePagamento("Crédito", 1, (Node) event.getSource());
     }
 
+    /**
+     * AJUSTE: Passa o código 2 para Pix.
+     */
     @FXML
     private void handlePix(ActionEvent event) {
-        iniciarFluxoDePagamento("Pix", (Node) event.getSource());
+        iniciarFluxoDePagamento("Pix", 2, (Node) event.getSource());
     }
 }
