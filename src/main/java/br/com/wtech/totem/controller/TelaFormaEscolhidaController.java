@@ -49,6 +49,10 @@ public class TelaFormaEscolhidaController {
                         shouldNavigate = true;
                         break;
                     case "ERROR":
+                        destination = "/fxml/tela_pagamento_selecionado.fxml";
+                        shouldNavigate = true;
+                        break;
+                    case "CANCELLED":
                         destination = "/fxml/tela_forma_pagamento.fxml";
                         shouldNavigate = true;
                         break;

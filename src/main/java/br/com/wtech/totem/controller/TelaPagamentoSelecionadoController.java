@@ -17,7 +17,8 @@ public class TelaPagamentoSelecionadoController {
 
     @FXML private AnchorPane root;
     @FXML private Label labelStatus;
-    @FXML private Label labelDetalhes;
+    @FXML private Label labelDetalhes1;
+    @FXML private Label labelDetalhes2;
     @FXML private Label labelValorTotal;
 
     @Autowired private NavegacaoUtil navegaPara;
@@ -43,7 +44,7 @@ public class TelaPagamentoSelecionadoController {
      */
     private void processarSucesso() {
         labelStatus.setText("APROVADO");
-        labelDetalhes.setText("Obrigado! Retire seu comprovante.");
+        labelDetalhes1.setText("Obrigado! Retire seu comprovante.");
 
         // MANTIDO: Atualiza o status do ticket no banco de dados.
         leitorService.atualizarStatusParaPago();
@@ -63,7 +64,8 @@ public class TelaPagamentoSelecionadoController {
         labelStatus.setText("NÃO AUTORIZADO");
         // Mostra o motivo, se houver, ou uma mensagem padrão.
         String detalhes = resultado != null ? resultado.getMensagemDetalhada() : "Tente novamente.";
-        labelDetalhes.setText("Por favor, tente outra forma de pagamento. " + detalhes);
+        labelDetalhes1.setText("Por favor, tente outra forma de pagamento.");
+        labelDetalhes2.setText(detalhes);
 
         // Pausa de 4 segundos e volta para a tela de escolha de pagamento.
         PauseTransition delay = new PauseTransition(Duration.seconds(4));

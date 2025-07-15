@@ -64,11 +64,4 @@ public class TelaFormaPagamentoController {
     private void handlePix(ActionEvent event) {
         iniciarFluxoDePagamento("Pix", (Node) event.getSource());
     }
-
-    @FXML
-    private void handleCancelar(ActionEvent event) {
-        // Se o usuário cancelar aqui, simplesmente volta para a tela inicial.
-        System.out.println("Voltando para a tela inicial");
-        navegaPara.trocaTela("/fxml/tela_inicial.fxml", (Node) event.getSource());
-    }
 }

@@ -4,66 +4,80 @@ import br.com.wtech.totem.entity.Ticket;
 import br.com.wtech.totem.service.LeitorService;
 import br.com.wtech.totem.service.PagamentoTEFService;
 import br.com.wtech.totem.util.NavegacaoUtil;
-import javafx.animation.PauseTransition; // Importe a classe PauseTransition
+import javafx.animation.PauseTransition;
 import javafx.application.Platform;
-import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
+import javafx.scene.control.Alert;
 import javafx.scene.control.TextField;
-import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.HBox;
-import javafx.util.Duration; // Importe a classe Duration
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Component;
+import javafx.util.Duration;
 
 @Component
 public class TelaLeitorController {
 
-    @FXML private AnchorPane logoContainer;
-    @FXML private HBox cancelarContainer;
+    // AJUSTE: Injetamos o Node que corresponde ao fx:id="logoContainer" do seu <fx:include>
+    @FXML private Node logoContainer;
     @FXML private TextField inputLeitura;
 
-    @Autowired
-    private NavegacaoUtil navegaPara;
-
-    @Autowired
-    private LeitorService leitorService;
-
-    @Autowired
-    private PagamentoTEFService pagamentoTEFService;
+    @Autowired private NavegacaoUtil navegaPara;
+    @Autowired private LeitorService leitorService;
+    @Autowired private PagamentoTEFService pagamentoTEFService;
 
     @FXML
     private void initialize() {
-        // ... seu código initialize permanece o mesmo ...
-        ImageView imgLogo = (ImageView) logoContainer.lookup("#imgLogo");
-        if (imgLogo != null) {
-            imgLogo.setOnMouseClicked(this::handleLogoClick);
-        }
-
-        Button btnCancelar = (Button) cancelarContainer.lookup("#btnCancelar");
-        if (btnCancelar != null) {
-            btnCancelar.setOnAction(this::handleCancelar);
+        // AJUSTE: Usamos o lookup de forma segura, com verificação de nulo.
+        if (logoContainer != null) {
+            // Procura pelo nó com o ID "imgLogo" DENTRO do componente incluído.
+            Node imgLogo = logoContainer.lookup("#imgLogo");
+            if (imgLogo != null) {
+                imgLogo.setOnMouseClicked(this::handleLogoClick);
+            } else {
+                System.err.println("AVISO: ImageView com fx:id='imgLogo' não foi encontrada dentro do componente logo.fxml.");
+            }
         }
 
         Platform.runLater(() -> inputLeitura.requestFocus());
     }
-
+    /**
+     * Este método trata o clique na logo para testar o CANCELAMENTO/ESTORNO.
+     */
     @FXML
     private void handleLogoClick(MouseEvent event) {
-        navegaPara.trocaTela("/fxml/tela_processando.fxml", (Node) event.getSource());
-    }
+        System.out.println("--- LOGO CLICADO: INICIANDO TESTE DE ESTORNO ---");
+        String nsuParaCancelar = pagamentoTEFService.getUltimoNsuParaReimpressao();
 
+        if (nsuParaCancelar == null || nsuParaCancelar.isBlank()) {
+            System.err.println("Nenhum NSU armazenado para estornar. Realize uma transação aprovada primeiro.");
+            Platform.runLater(() -> new Alert(Alert.AlertType.WARNING, "Nenhuma transação anterior encontrada para estornar.").show());
+            return;
+        }
+
+        pagamentoTEFService.iniciarCancelamentoAdministrativo(nsuParaCancelar);
+    }
+    /**
+     * Este método trata o clique na logo para testar a reimpressão.
+     */
     @FXML
-    private void handleCancelar(ActionEvent event) {
-        System.out.println("Voltando para a tela inicial");
-        pagamentoTEFService.solicitarCancelamento();
-        navegaPara.trocaTela("/fxml/tela_inicial.fxml", (Node) event.getSource());
+    private void handleLogoClickOff(MouseEvent event) {
+        System.out.println("--- LOGO CLICADO: INICIANDO TESTE DE REIMPRESSÃO ---");
+        String nsuParaTeste = pagamentoTEFService.getUltimoNsuParaReimpressao();
+
+        if (nsuParaTeste == null || nsuParaTeste.isBlank()) {
+            System.err.println("Nenhum NSU armazenado para reimpressão. Realize uma transação aprovada primeiro.");
+            Platform.runLater(() -> new Alert(Alert.AlertType.WARNING, "Nenhuma transação anterior encontrada para reimprimir.").show());
+            return;
+        }
+
+        pagamentoTEFService.iniciarReimpressao(nsuParaTeste);
     }
 
+    /**
+     * Este método trata a leitura de tickets normais.
+     */
     @FXML
     private void handleLeitor() {
         // Se o campo já estiver desabilitado (em cooldown), não faz nada.
@@ -104,16 +118,12 @@ public class TelaLeitorController {
         }
     }
 
-    /**
-     * Método que cria uma pausa de 2 segundos e depois limpa e reabilita o campo.
-     */
     private void iniciarCooldownParaNovaLeitura() {
         PauseTransition delay = new PauseTransition(Duration.seconds(2));
         delay.setOnFinished(event -> {
             inputLeitura.clear();
             inputLeitura.setDisable(false);
-            inputLeitura.requestFocus(); // Foca no campo novamente, pronto para o próximo scan
-            System.out.println("--- Sistema pronto para nova leitura ---");
+            inputLeitura.requestFocus();
         });
         delay.play();
     }

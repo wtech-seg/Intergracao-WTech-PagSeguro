@@ -37,10 +37,11 @@ public class TelaAguardandoPagamentoController {
 
                 switch (newStatus) {
                     case "FINISHED":
+                    case "ERROR":
                         destination = "/fxml/tela_pagamento_selecionado.fxml";
                         isTransactionOver = true;
                         break;
-                    case "ERROR":
+                    case "CANCELLED":
                         destination = "/fxml/tela_forma_pagamento.fxml";
                         isTransactionOver = true;
                         break;

@@ -69,7 +69,8 @@
         <!-- Texto centralizado no meio do painel -->
         <VBox alignment="CENTER" spacing="10" VBox.vgrow="ALWAYS">
             <Label fx:id="labelStatus" text="Processando..." styleClass="label-destaque"/>
-            <Label fx:id="labelDetalhes" text="Aguarde um momento" styleClass="label-detalhes"/>
+            <Label fx:id="labelDetalhes1" text="Aguarde um momento" styleClass="label-detalhes"/>
+            <Label fx:id="labelDetalhes2" text="" styleClass="label-detalhes"/>
         </VBox>
 
         <!-- Rodapé: separar cancelar e bloco de permanência -->
