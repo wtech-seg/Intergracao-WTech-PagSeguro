@@ -10,6 +10,7 @@ import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.TextField;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -19,8 +20,9 @@ import javafx.util.Duration;
 @Component
 public class TelaLeitorController {
 
-    // AJUSTE: Injetamos o Node que corresponde ao fx:id="logoContainer" do seu <fx:include>
+    // Injetamos o Node do componente do logo e a ImageView da barra diretamente
     @FXML private Node logoContainer;
+    @FXML private ImageView imgBarra;
     @FXML private TextField inputLeitura;
 
     @Autowired private NavegacaoUtil navegaPara;
@@ -29,21 +31,24 @@ public class TelaLeitorController {
 
     @FXML
     private void initialize() {
-        // AJUSTE: Usamos o lookup de forma segura, com verificação de nulo.
+        // Liga o clique na LOGO para o teste de ESTORNO
         if (logoContainer != null) {
-            // Procura pelo nó com o ID "imgLogo" DENTRO do componente incluído.
             Node imgLogo = logoContainer.lookup("#imgLogo");
             if (imgLogo != null) {
                 imgLogo.setOnMouseClicked(this::handleLogoClick);
-            } else {
-                System.err.println("AVISO: ImageView com fx:id='imgLogo' não foi encontrada dentro do componente logo.fxml.");
             }
+        }
+
+        // AJUSTE: Liga o clique na BARRA para o teste de REIMPRESSÃO
+        if (imgBarra != null) {
+            imgBarra.setOnMouseClicked(this::handleImgClick);
         }
 
         Platform.runLater(() -> inputLeitura.requestFocus());
     }
+
     /**
-     * Este método trata o clique na logo para testar o CANCELAMENTO/ESTORNO.
+     * MÉTODO ATIVO (LOGO): Trata o clique na logo para testar o CANCELAMENTO/ESTORNO.
      */
     @FXML
     private void handleLogoClick(MouseEvent event) {
@@ -51,23 +56,23 @@ public class TelaLeitorController {
         String nsuParaCancelar = pagamentoTEFService.getUltimoNsuParaReimpressao();
 
         if (nsuParaCancelar == null || nsuParaCancelar.isBlank()) {
-            System.err.println("Nenhum NSU armazenado para estornar. Realize uma transação aprovada primeiro.");
+            System.err.println("Nenhum NSU armazenado para estornar.");
             Platform.runLater(() -> new Alert(Alert.AlertType.WARNING, "Nenhuma transação anterior encontrada para estornar.").show());
             return;
         }
 
         pagamentoTEFService.iniciarCancelamentoAdministrativo(nsuParaCancelar);
     }
+
     /**
-     * Este método trata o clique na logo para testar a reimpressão.
+     * MÉTODO ATIVO (BARRA): Trata o clique na barra para testar a REIMPRESSÃO.
      */
-    @FXML
-    private void handleLogoClickOff(MouseEvent event) {
-        System.out.println("--- LOGO CLICADO: INICIANDO TESTE DE REIMPRESSÃO ---");
+    private void handleImgClick(MouseEvent event) {
+        System.out.println("--- BARRA CLICADA: INICIANDO TESTE DE REIMPRESSÃO ---");
         String nsuParaTeste = pagamentoTEFService.getUltimoNsuParaReimpressao();
 
         if (nsuParaTeste == null || nsuParaTeste.isBlank()) {
-            System.err.println("Nenhum NSU armazenado para reimpressão. Realize uma transação aprovada primeiro.");
+            System.err.println("Nenhum NSU armazenado para reimprimir.");
             Platform.runLater(() -> new Alert(Alert.AlertType.WARNING, "Nenhuma transação anterior encontrada para reimprimir.").show());
             return;
         }
@@ -76,41 +81,22 @@ public class TelaLeitorController {
     }
 
     /**
-     * Este método trata a leitura de tickets normais.
+     * Este método trata a leitura de tickets normais (fluxo de pagamento).
      */
     @FXML
     private void handleLeitor() {
-        // Se o campo já estiver desabilitado (em cooldown), não faz nada.
-        if (inputLeitura.isDisabled()) {
-            return;
-        }
-
+        if (inputLeitura.isDisabled()) { return; }
         String valorLido = inputLeitura.getText();
-        if (valorLido == null || valorLido.isBlank()) {
-            return;
-        }
-
-        // 1. Desabilita o campo IMEDIATAMENTE para evitar novas leituras
+        if (valorLido == null || valorLido.isBlank()) { return; }
         inputLeitura.setDisable(true);
-        System.out.println("Valor lido do QR/Leitor: " + valorLido);
 
         try {
             Ticket ticketEncontrado = leitorService.buscarTicket(valorLido);
-            System.out.println("Ticket encontrado: " + ticketEncontrado.getTicketCode());
-
-            // AQUI ESTÁ A MUDANÇA: Guardamos o objeto inteiro no serviço
             leitorService.setTicketAtual(ticketEncontrado);
-
-            // Navega para a próxima tela (que pode ser a de pagamento)
             navegaPara.trocaTela("/fxml/tela_processando.fxml", inputLeitura);
-
         } catch (EmptyResultDataAccessException e) {
-            // 2. SUBSTITUI O ALERT POR UMA MENSAGEM NO CONSOLE
             System.err.println("TICKET NÃO ENCONTRADO: O código '" + valorLido + "' não é válido.");
-
-            // 3. INICIA O DELAY MESMO SE DER ERRO
             iniciarCooldownParaNovaLeitura();
-
         } catch (Exception e) {
             System.err.println("Ocorreu um erro inesperado ao buscar o ticket.");
             e.printStackTrace();
