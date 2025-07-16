@@ -4,76 +4,69 @@ import br.com.wtech.totem.service.FormaPagamentoService;
 import br.com.wtech.totem.service.LeitorService;
 import br.com.wtech.totem.service.PagamentoTEFService;
 import br.com.wtech.totem.util.NavegacaoUtil;
-import javafx.animation.PauseTransition;
+import javafx.application.Platform;
+import javafx.beans.value.ChangeListener;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.image.ImageView;
-import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.HBox;
-import javafx.util.Duration;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import java.math.BigDecimal;
 
 @Component
 public class TelaFormaEscolhidaController {
 
-    @FXML private AnchorPane logoContainer;
-    @FXML private HBox cancelarContainer;
+    @FXML private AnchorPane root;
     @FXML private Label labelFormaEscolhida;
     @FXML private Label labelValorTotal;
+    @FXML private Button btnCancelar;
 
-    @Autowired
-    private NavegacaoUtil navegaPara;
+    @Autowired private NavegacaoUtil navegaPara;
+    @Autowired private LeitorService leitorService;
+    @Autowired private FormaPagamentoService formaPagamentoService;
+    @Autowired private PagamentoTEFService pagamentoTEFService;
 
-    @Autowired
-    private LeitorService leitorService;
-
-    @Autowired
-    private FormaPagamentoService formaPagamentoService;
-
-    @Autowired
-    private PagamentoTEFService pagamentoTEFService;
+    private ChangeListener<String> tefStatusListener;
 
     @FXML
     private void initialize() {
         String forma = formaPagamentoService.getFormaPagamento();
+        BigDecimal valor = leitorService.getTicketAtual().getFinalValue();
+
         labelFormaEscolhida.setText(forma != null ? forma : "Forma não definida");
-
-        PauseTransition espera = new PauseTransition(Duration.seconds(2));
-        espera.setOnFinished(event -> {
-            System.out.println("Tempo de espera concluído. Indo para a tela de servidor conectado.");
-            navegaPara.trocaTela("/fxml/tela_servidor_conectado.fxml", logoContainer);
-        });
-        espera.play();
-
-        ImageView imgLogo = (ImageView) logoContainer.lookup("#imgLogo");
-        if (imgLogo != null) {
-            imgLogo.setOnMouseClicked(this::handleLogoClick);
-        }
-
-        Button btnCancelar = (Button) cancelarContainer.lookup("#btnCancelar");
-        if (btnCancelar != null) {
-            btnCancelar.setOnAction(this::handleCancelar);
-            btnCancelar.setFocusTraversable(false);
-        }
-
         labelValorTotal.setText(leitorService.getValorTotalFormatado());
-    }
 
-    @FXML
-    private void handleLogoClick(MouseEvent event) {
-        System.out.println("Passando de página");
-        navegaPara.trocaTela("/fxml/tela_servidor_conectado.fxml", (Node) event.getSource());
-    }
+        this.tefStatusListener = (obs, oldStatus, newStatus) -> {
+            Platform.runLater(() -> {
+                boolean shouldNavigate = false;
+                String destination = "";
 
-    @FXML
-    private void handleCancelar(ActionEvent event) {
-        System.out.println("Voltando para a tela inicial");
-        pagamentoTEFService.solicitarCancelamento();
-        navegaPara.trocaTela("/fxml/tela_inicial.fxml", (Node) event.getSource());
+                switch (newStatus) {
+                    case "SERVER_CONNECTED":
+                        destination = "/fxml/tela_servidor_conectado.fxml";
+                        shouldNavigate = true;
+                        break;
+                    case "ERROR":
+                        destination = "/fxml/tela_pagamento_selecionado.fxml";
+                        shouldNavigate = true;
+                        break;
+                    case "CANCELLED":
+                        destination = "/fxml/tela_forma_pagamento.fxml";
+                        shouldNavigate = true;
+                        break;
+                }
+
+                if (shouldNavigate) {
+                    // A SOLUÇÃO DEFINITIVA: O próprio listener se remove antes de navegar.
+                    pagamentoTEFService.tefStatusProperty().removeListener(this.tefStatusListener);
+                    navegaPara.trocaTela(destination, root);
+                }
+            });
+        };
+
+        pagamentoTEFService.tefStatusProperty().addListener(this.tefStatusListener);
+        pagamentoTEFService.iniciarProcessoCompletoDePagamento(valor, forma);
     }
 }

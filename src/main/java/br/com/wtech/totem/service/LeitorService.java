@@ -111,6 +111,15 @@ public class LeitorService {
         }
     }
 
+    public int getVlFinal() {
+        Ticket ticket = getTicketAtual();
+        if (ticket != null && ticket.getFinalValue() != null) {
+            // Multiplica por 100 e converte para int (centavos)
+            return ticket.getFinalValue().multiply(new BigDecimal("100")).intValue();
+        }
+        return 0;
+    }
+
     // --- RowMapper para a entidade Ticket ---
     private static class TicketRowMapper implements RowMapper<Ticket> {
         @Override

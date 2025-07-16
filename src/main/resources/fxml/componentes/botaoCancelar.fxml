@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.image.Image?>
@@ -7,12 +6,15 @@
 <?import javafx.scene.layout.HBox?>
 
 <HBox xmlns:fx="http://javafx.com/fxml/1"
-      fx:id="cancelarContainer"
+      xmlns="http://javafx.com/javafx/11"
+      fx:controller="br.com.wtech.totem.controller.BotaoCancelarController"
       alignment="CENTER_LEFT"
       spacing="8"
       styleClass="botao-cancelar-box">
+
     <Button fx:id="btnCancelar"
-            styleClass="botao-cancelar">
+            styleClass="botao-cancelar"
+            onAction="#handleCancelar">
         <graphic>
             <HBox alignment="CENTER" spacing="8">
                 <ImageView fitHeight="24" fitWidth="24" preserveRatio="true">

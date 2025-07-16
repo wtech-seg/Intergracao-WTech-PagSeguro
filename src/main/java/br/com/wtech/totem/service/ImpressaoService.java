@@ -51,7 +51,7 @@ public class ImpressaoService {
         System.out.println("IMPRESSAO SERVICE: Registrando impressão de recibo para o ticket: " + ticket.getTicketCode());
         String ipDoTotem = getIpLocal();
         String sql = "INSERT INTO ace_qr_code (NO_QR_CODE, FL_SITUACAO, DT_VALIDADE_INI, CD_PORTA, DT_VALIDADE_FIM, DML_DATA, DML_IP, DML_USR) " +
-                "VALUES (?,'A',?,'/dev/usb/lp0', ?, ?, ?, ?)";
+                "VALUES (?,'A',?,'\\\\\\\\127.0.0.1\\\\ImpEstacionamento', ?, ?, ?, ?)";
         jdbc.update(sql, ticket.getTicketCode(), LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now(), ipDoTotem, "autopagamento");
         System.out.println("IMPRESSAO SERVICE: Registro de impressão inserido com sucesso.");
     }
