@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -48,8 +49,6 @@ public class PagamentoTEFService {
     public void iniciarProcessoCompletoDePagamento(BigDecimal valor, String tipoPagamento) {
         Platform.runLater(() -> tefStatus.set("IDLE"));
         Task<ResultadoTEF> pagamentoTask = criarTaskDePagamento(valor, tipoPagamento);
-
-        // --- AJUSTE APLICADO AQUI ---
         // A lógica de atualização de status agora garante a ordem correta das operações.
         pagamentoTask.setOnSucceeded(e -> {
             this.ultimoResultado = pagamentoTask.getValue(); // 1º: Guarda o resultado
@@ -79,6 +78,20 @@ public class PagamentoTEFService {
         new Thread(cancelTask).start();
     }
 
+    public void iniciarProcessoPix(BigDecimal valor, Consumer<ResultadoTEF> onComplete) {
+        // Reutilizamos a Task de pagamento, passando "Pix" como tipo
+        Task<ResultadoTEF> pixTask = criarTaskDePagamento(valor, "Pix");
+
+        // Ao terminar com sucesso ou falha, executa o callback que o controller enviou
+        pixTask.setOnSucceeded(e -> Platform.runLater(() -> onComplete.accept(pixTask.getValue())));
+        pixTask.setOnFailed(e -> {
+            ResultadoTEF erro = new ResultadoTEF(false, "ERRO", getTaskExceptionMessage(pixTask));
+            Platform.runLater(() -> onComplete.accept(erro));
+        });
+
+        new Thread(pixTask).start();
+    }
+
     private Task<ResultadoTEF> criarTaskDePagamento(BigDecimal valor, String tipoPagamento) {
         return new Task<>() {
             @Override
@@ -91,16 +104,12 @@ public class PagamentoTEFService {
                 String nsuOriginal = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
                 String data = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
 
-                // --- 1. INICIA A FUNÇÃO ---
                 int ret = tef.IniciaFuncaoMCInterativo(operacao.getCode(), CNPJ_LOJA, 1, nsuOriginal, valorFormatado, nsuOriginal, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
-                if (ret != 0) {
-                    throw new RuntimeException("Erro ao iniciar TEF. Código: " + ret);
-                }
+                if (ret != 0) { throw new RuntimeException("Erro ao iniciar TEF. Código: " + ret); }
 
                 String nsuRetornadoPeloTef = nsuOriginal;
                 String comprovante = "";
 
-                // --- 2. LOOP DE COMUNICAÇÃO ---
                 while (true) {
                     if (isCancelled() || cancelamentoSolicitado) {
                         tef.CancelarFluxoMCInterativo();
@@ -109,59 +118,68 @@ public class PagamentoTEFService {
                     }
 
                     String resposta = tef.AguardaFuncaoMCInterativo();
-
                     System.out.println(">> TEF Resposta (Pagamento): " + resposta);
 
-                    if (resposta == null || resposta.isEmpty()) {
-                        Thread.sleep(100);
-                        continue;
-                    }
+                    if (resposta == null || resposta.isEmpty()) { Thread.sleep(100); continue; }
 
                     if (resposta.startsWith("[MENU]")) {
-                        System.out.println("TEF MENU: " + resposta);
                         String[] partesMenu = resposta.split("#");
                         if (partesMenu.length > 2) {
-                            String[] opcoes = partesMenu[2].split("\\|");
-                            if (opcoes.length > 0) {
-                                String indiceDaEscolha = opcoes[0].split(",")[0];
-                                System.out.println("Selecionando automaticamente a primeira opção do menu: " + indiceDaEscolha);
-                                tef.ContinuaFuncaoMCInterativo(indiceDaEscolha);
-
-                                if (tefStatus.get().equals("STARTED")) {
-                                    Platform.runLater(() -> tefStatus.set("SERVER_CONNECTED"));
-                                }
+                            String indiceDaEscolha = partesMenu[2].split("\\|")[0].split(",")[0];
+                            tef.ContinuaFuncaoMCInterativo(indiceDaEscolha);
+                            if (tefStatus.get().equals("STARTED")) {
+                                Platform.runLater(() -> tefStatus.set("SERVER_CONNECTED"));
                             }
+                        }
+                    } else if (resposta.startsWith("[PERGUNTA]")) {
+                        if (resposta.contains("TELEFONE DO CLIENTE")) { // Pergunta específica do PIX
+                            tef.ContinuaFuncaoMCInterativo("");
+                        } else {
+                            tef.CancelarFluxoMCInterativo();
+                            throw new RuntimeException("Operação cancelada: totem não pode responder perguntas genéricas.");
                         }
                     } else if (resposta.startsWith("[MSG]")) {
                         String mensagem = resposta.substring(5);
-                        //System.out.println("TEF MSG: " + mensagem);
-                        if (mensagem.toUpperCase().contains("CARTAO") || mensagem.toUpperCase().contains("PINPAD")) {
+                        // Agora, tanto Cartão quanto PIX podem atualizar o status para "aguardando"
+                        if (mensagem.toUpperCase().contains("CARTAO") || mensagem.toUpperCase().contains("PINPAD") ||
+                                mensagem.toUpperCase().contains("AGUARDANDO PAGAMENTO") || mensagem.contains("QRCODE=")) {
                             Platform.runLater(() -> tefStatus.set("WAITING_FOR_CARD"));
                         }
-                    } else if (resposta.startsWith("[PERGUNTA]")) {
-                        tef.CancelarFluxoMCInterativo();
-                        throw new RuntimeException("Operação cancelada: totem não pode responder perguntas.");
+                    } else if (resposta.startsWith("[RETORNO]")) {
+                        nsuRetornadoPeloTef = extrairCampo(resposta, "CAMP00133");
+                        comprovante = extrairCampo(resposta, "CAMPO122");
+
+                        // AJUSTE: Corrigida a extração do NSU para PIX e Cartão
+                        if (operacao == TefOperation.PIX) {
+                            ultimoNsuParaReimpressao = nsuRetornadoPeloTef; // No PIX, o NSU principal é o correto
+                        } else {
+                            ultimoNsuParaReimpressao = extrairNsuDoComprovante(comprovante);
+                        }
+                        System.out.println(">>> NSU TEF para reimpressão armazenado: " + ultimoNsuParaReimpressao);
+                        break;
                     } else if (resposta.startsWith("[ERROABORTAR]") || resposta.startsWith("[ERRODISPLAY]")) {
                         tef.CancelarFluxoMCInterativo();
                         throw new RuntimeException("Erro TEF: " + resposta);
-                    } else if (resposta.startsWith("[RETORNO]")) {
-                        Platform.runLater(() -> tefStatus.set("TRANSACTION_DATA_RECEIVED"));
-                        nsuRetornadoPeloTef = extrairCampo(resposta, "CAMP00133");
-                        comprovante = extrairCampo(resposta, "CAMPO122");
-                        ultimoNsuParaReimpressao = extrairNsuDoComprovante(comprovante);
-                        System.out.println(">>> NSU TEF para reimpressão armazenado: " + ultimoNsuParaReimpressao);
-                        break;
                     }
                 }
 
-                // --- 3. FINALIZA A TRANSAÇÃO ---
-                ret = tef.FinalizaFuncaoMCInterativo(98, CNPJ_LOJA, 1, nsuOriginal, valorFormatado, nsuRetornadoPeloTef, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
+                // AJUSTE: A finalização com loop de confirmação agora só ocorre para Cartão
+                if (operacao != TefOperation.PIX) {
+                    System.out.println("Finalizando transação de Cartão...");
+                    ret = tef.FinalizaFuncaoMCInterativo(98, CNPJ_LOJA, 1, nsuOriginal, valorFormatado, nsuRetornadoPeloTef, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
+                    if (ret != 0) { throw new RuntimeException("Falha ao confirmar a transação no TEF. Código: " + ret); }
 
-                System.out.println(comprovante);
-                System.out.println("RETORNO DA FINALIZAÇÃO: " + ret);
-
-                if (ret != 0) {
-                    throw new RuntimeException("Falha ao confirmar a transação no TEF. Código: " + ret);
+                    // Loop de confirmação obrigatório para cartões
+                    int tentativasConfirmacao = 0; boolean confirmado = false;
+                    while (tentativasConfirmacao < 100) {
+                        String finalResp = tef.AguardaFuncaoMCInterativo();
+                        if (finalResp != null && finalResp.contains("CONFIRMADA COM SUCESSO")) { confirmado = true; break; }
+                        if (finalResp != null && finalResp.toUpperCase().contains("ERRO")) { throw new RuntimeException("TEF retornou erro na confirmação final: " + finalResp); }
+                        Thread.sleep(100); tentativasConfirmacao++;
+                    }
+                    if (!confirmado) { throw new RuntimeException("Timeout: Não foi recebida a confirmação final da DLL."); }
+                } else {
+                    System.out.println("Finalização de PIX. Transação já confirmada.");
                 }
 
                 return new ResultadoTEF(true, "APROVADO", comprovante);
@@ -338,6 +356,10 @@ public class PagamentoTEFService {
 
     // --- MÉTODOS AUXILIARES ---
 
+    public void setUltimoResultado(ResultadoTEF resultado) {
+        this.ultimoResultado = resultado;
+    }
+
     private String getTaskExceptionMessage(Task<?> task) {
         if (task.getException() != null) {
             return task.getException().getMessage();
@@ -353,7 +375,7 @@ public class PagamentoTEFService {
         switch (tipoPagamento.toLowerCase()) {
             case "crédito": return TefOperation.CREDIT;
             case "débito": return TefOperation.DEBIT;
-            //case "pix": return TefOperation.PIX;
+            case "pix": return TefOperation.PIX;
             default: throw new IllegalArgumentException("Tipo de pagamento desconhecido: " + tipoPagamento);
         }
     }

@@ -8,7 +8,8 @@ public enum TefOperation {
     CREDIT(0),    // crédito à vista
     DEBIT(1),     // débito à vista
     CANCEL(5),    // cancelamento
-    REPRINT(6);  // reimpressão
+    REPRINT(6),  // reimpressão
+    PIX(51);
 
     private final int code;
 
