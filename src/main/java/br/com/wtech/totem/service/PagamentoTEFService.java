@@ -62,19 +62,33 @@ public class PagamentoTEFService {
         new Thread(pagamentoTask).start();
     }
 
-    public void iniciarReimpressao(String nsuParaReimprimir) {
+    // AJUSTE: O método agora aceita um "callback" a ser executado no final.
+    public void iniciarReimpressao(String nsuParaReimprimir, Consumer<ResultadoTEF> onComplete) {
         Platform.runLater(() -> tefStatus.set("IDLE"));
         Task<ResultadoTEF> reprintTask = criarTaskDeReimpressao(nsuParaReimprimir);
-        reprintTask.setOnSucceeded(e -> this.ultimoResultado = reprintTask.getValue());
-        reprintTask.setOnFailed(e -> this.ultimoResultado = new ResultadoTEF(false, "ERRO", getTaskExceptionMessage(reprintTask)));
+
+        // Ao terminar, executa o callback que o controller enviou.
+        reprintTask.setOnSucceeded(e -> Platform.runLater(() -> onComplete.accept(reprintTask.getValue())));
+        reprintTask.setOnFailed(e -> {
+            ResultadoTEF erro = new ResultadoTEF(false, "ERRO", getTaskExceptionMessage(reprintTask));
+            Platform.runLater(() -> onComplete.accept(erro));
+        });
+
         new Thread(reprintTask).start();
     }
 
-    public void iniciarCancelamentoAdministrativo(String nsuParaCancelar) {
+    // AJUSTE: O método agora aceita um "callback" a ser executado no final.
+    public void iniciarCancelamentoAdministrativo(String nsuParaCancelar, Consumer<ResultadoTEF> onComplete) {
         Platform.runLater(() -> tefStatus.set("IDLE"));
         Task<ResultadoTEF> cancelTask = criarTaskDeCancelamento(nsuParaCancelar);
-        cancelTask.setOnSucceeded(e -> this.ultimoResultado = cancelTask.getValue());
-        cancelTask.setOnFailed(e -> this.ultimoResultado = new ResultadoTEF(false, "ERRO", getTaskExceptionMessage(cancelTask)));
+
+        // Ao terminar, executa o callback que o controller enviou.
+        cancelTask.setOnSucceeded(e -> Platform.runLater(() -> onComplete.accept(cancelTask.getValue())));
+        cancelTask.setOnFailed(e -> {
+            ResultadoTEF erro = new ResultadoTEF(false, "ERRO", getTaskExceptionMessage(cancelTask));
+            Platform.runLater(() -> onComplete.accept(erro));
+        });
+
         new Thread(cancelTask).start();
     }
 

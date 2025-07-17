@@ -34,6 +34,7 @@ public class ImpressaoService {
         registrarImpressaoRecibo(ticket);
         registrarTagLeitura(ticket);
         atualizarStatusParaImpresso(ticket);
+        leitorService.setUltimoTicketPago(ticket.getTicketCode());
     }
 
     /**
@@ -71,6 +72,43 @@ public class ImpressaoService {
         } catch (UnknownHostException e) {
             e.printStackTrace();
             return "127.0.0.1";
+        }
+    }
+
+    public void registrarOperacoesDeReimpressao(String ticketCode) {
+        if (ticketCode == null || ticketCode.isBlank()) {
+            System.err.println("REIMPRESSAO SERVICE: Operação cancelada. Código do ticket não fornecido.");
+            return;
+        }
+        registrarImpressaoRecibo(ticketCode);
+    }
+
+    public void registrarOperacoesDeCancelamento(String ticketCode) {
+        if (ticketCode == null || ticketCode.isBlank()) {
+            System.err.println("CANCELAMENTO SERVICE: Operação cancelada. Código do ticket não fornecido.");
+            return;
+        }
+        atualizarStatusParaCancelado(ticketCode);
+        registrarImpressaoRecibo(ticketCode);
+    }
+
+    private void registrarImpressaoRecibo(String ticketCode) {
+        System.out.println("IMPRESSAO SERVICE: Registrando impressão de recibo para o ticket: " + ticketCode);
+        String ipDoTotem = getIpLocal();
+        String sql = "INSERT INTO ace_qr_code (NO_QR_CODE, FL_SITUACAO, DT_VALIDADE_INI, CD_PORTA, DT_VALIDADE_FIM, DML_DATA, DML_IP, DML_USR) " +
+                "VALUES (?,'A',?,'\\\\\\\\127.0.0.1\\\\ImpEstacionamento', ?, ?, ?, ?)";
+        jdbc.update(sql, ticketCode, LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now(), ipDoTotem, "autopagamento");
+        System.out.println("IMPRESSAO SERVICE: Registro de impressão inserido com sucesso.");
+    }
+
+    private void atualizarStatusParaCancelado(String ticketCode) {
+        System.out.println("CANCELAMENTO SERVICE: Atualizando status para '6' (Cancelado) no ticket: " + ticketCode);
+        String sql = "UPDATE est_tickets SET fl_status = 6 WHERE cd_ticket = ?";
+        int linhasAfetadas = jdbc.update(sql, ticketCode);
+        if (linhasAfetadas > 0) {
+            System.out.println("CANCELAMENTO SERVICE: Status do ticket " + ticketCode + " atualizado para 6 no banco de dados.");
+        } else {
+            System.err.println("CANCELAMENTO SERVICE: Nenhuma linha foi atualizada para o ticket " + ticketCode + ".");
         }
     }
 }

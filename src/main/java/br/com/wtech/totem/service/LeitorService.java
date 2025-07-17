@@ -23,6 +23,7 @@ public class LeitorService {
     private Ticket ticketAtual;
     private String permanenciaFormatada;
     private LocalDateTime dataDaLeitura;
+    private String ultimoTicketPagoCode;
 
     public LeitorService(JdbcTemplate jdbc) {
         this.jdbc = jdbc;
@@ -118,6 +119,14 @@ public class LeitorService {
             return ticket.getFinalValue().multiply(new BigDecimal("100")).intValue();
         }
         return 0;
+    }
+
+    public void setUltimoTicketPago(String ticketCode) {
+        this.ultimoTicketPagoCode = ticketCode;
+    }
+
+    public String getUltimoTicketPago() {
+        return ultimoTicketPagoCode;
     }
 
     // --- RowMapper para a entidade Ticket ---
