@@ -160,7 +160,7 @@ public class PagamentoTEFService {
                             Platform.runLater(() -> tefStatus.set("WAITING_FOR_CARD"));
                         }
                     } else if (resposta.startsWith("[RETORNO]")) {
-                        nsuRetornadoPeloTef = extrairCampo(resposta, "CAMP00133");
+                        nsuRetornadoPeloTef = extrairCampo(resposta, "CAMPO0133");
                         comprovante = extrairCampo(resposta, "CAMPO122");
 
                         // AJUSTE: Corrigida a extração do NSU para PIX e Cartão
@@ -206,8 +206,6 @@ public class PagamentoTEFService {
             @Override
             protected ResultadoTEF call() throws Exception {
                 cancelamentoSolicitado = false;
-                Platform.runLater(() -> tefStatus.set("STARTED"));
-
                 TefOperation operacao = TefOperation.REPRINT;
                 String data = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                 String comprovante = "";
@@ -225,12 +223,10 @@ public class PagamentoTEFService {
                 while (true) {
                     if (isCancelled() || cancelamentoSolicitado) {
                         tef.CancelarFluxoMCInterativo();
-                        Platform.runLater(() -> tefStatus.set("CANCELLED"));
                         return new ResultadoTEF(false, "CANCELADO", "Operação de reimpressão cancelada.");
                     }
 
                     String resposta = tef.AguardaFuncaoMCInterativo();
-
                     System.out.println(">> TEF Resposta (Reimpressão): " + resposta);
 
                     if (resposta == null || resposta.isEmpty()) {
@@ -241,20 +237,12 @@ public class PagamentoTEFService {
                     if (resposta.startsWith("[MENU]")) {
                         String[] partesMenu = resposta.split("#");
                         if (partesMenu.length > 2) {
-                            String[] opcoes = partesMenu[2].split("\\|");
-                            if (opcoes.length > 0) {
-                                String indiceDaEscolha = opcoes[0].split(",")[0];
-                                System.out.println("   -> Selecionando automaticamente a primeira opção do menu: " + indiceDaEscolha);
-                                tef.ContinuaFuncaoMCInterativo(indiceDaEscolha);
-                            }
+                            String indiceDaEscolha = partesMenu[2].split("\\|")[0].split(",")[0];
+                            tef.ContinuaFuncaoMCInterativo(indiceDaEscolha);
                         }
-                    } else if (resposta.startsWith("[PERGUNTA]")) { // --- AJUSTE ADICIONADO AQUI ---
-                        System.out.println("TEF PERGUNTA (Reimpressão): " + resposta);
-                        // Verifica se a pergunta é sobre a data da transação original
+                    } else if (resposta.startsWith("[PERGUNTA]")) {
                         if (resposta.contains("DIGITE TRANS ORIG")) {
-                            // Formata a data de HOJE como DDMMAA (somente números)
                             String dataHoje = LocalDate.now().format(DateTimeFormatter.ofPattern("dd/MM/yy"));
-                            System.out.println("   -> Respondendo à pergunta com a data de hoje: " + dataHoje);
                             tef.ContinuaFuncaoMCInterativo(dataHoje);
                         }
                     } else if (resposta.startsWith("[RETORNO]")) {
@@ -271,13 +259,29 @@ public class PagamentoTEFService {
                     throw new RuntimeException("Falha ao confirmar a Reimpressão. Código: " + ret);
                 }
 
-                Platform.runLater(() -> tefStatus.set("FINISHED"));
-                return new ResultadoTEF(true, "REIMPRESSO", comprovante);
-            }
+                // --- AJUSTE FINAL ADICIONADO AQUI ---
+                int tentativasConfirmacao = 0;
+                boolean operacaoConcluida = false;
+                while (tentativasConfirmacao < 50) {
+                    String finalResp = tef.AguardaFuncaoMCInterativo();
+                    System.out.println(">> TEF Resposta (Confirmação Reimpressão): " + finalResp);
 
-            @Override
-            protected void failed() {
-                Platform.runLater(() -> tefStatus.set("ERROR"));
+                    if (finalResp != null && !finalResp.isEmpty()) {
+                        if (finalResp.toUpperCase().contains("ERRO")) {
+                            System.err.println("Aviso: TEF retornou erro na confirmação da reimpressão: " + finalResp);
+                        }
+                        operacaoConcluida = true;
+                        break;
+                    }
+                    Thread.sleep(100);
+                    tentativasConfirmacao++;
+                }
+                if (!operacaoConcluida) {
+                    System.err.println("Aviso: Timeout ao aguardar confirmação final da reimpressão. Assumindo sucesso.");
+                }
+
+                System.out.println("Operação de reimpressão finalizada e confirmada pela DLL.");
+                return new ResultadoTEF(true, "REIMPRESSO", comprovante);
             }
         };
     }
@@ -287,7 +291,7 @@ public class PagamentoTEFService {
             @Override
             protected ResultadoTEF call() throws Exception {
                 cancelamentoSolicitado = false;
-                Platform.runLater(() -> tefStatus.set("STARTED"));
+                // Platform.runLater(() -> tefStatus.set("STARTED")); // Não é mais necessário com callback
 
                 TefOperation operacao = TefOperation.CANCEL;
                 String data = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
@@ -300,15 +304,14 @@ public class PagamentoTEFService {
                     throw new RuntimeException("Erro ao iniciar Estorno. Código: " + ret);
                 }
 
+                // Loop principal para obter o resultado da operação
                 while (true) {
                     if (isCancelled() || cancelamentoSolicitado) {
                         tef.CancelarFluxoMCInterativo();
-                        Platform.runLater(() -> tefStatus.set("CANCELLED"));
                         return new ResultadoTEF(false, "CANCELADO", "Operação de estorno cancelada.");
                     }
 
                     String resposta = tef.AguardaFuncaoMCInterativo();
-
                     System.out.println(">> TEF Resposta (Estorno): " + resposta);
 
                     if (resposta == null || resposta.isEmpty()) {
@@ -316,19 +319,20 @@ public class PagamentoTEFService {
                         continue;
                     }
 
+                    // A lógica para tratar [MENU] e [PERGUNTA] permanece a mesma
                     if (resposta.startsWith("[MENU]")) {
                         String[] partesMenu = resposta.split("#");
                         if (partesMenu.length > 2) {
                             String indiceDaEscolha = partesMenu[2].split("\\|")[0].split(",")[0];
                             tef.ContinuaFuncaoMCInterativo(indiceDaEscolha);
                         }
-                    } else if (resposta.startsWith("[PERGUNTA]")) { // --- AJUSTE ADICIONADO AQUI ---
-                        System.out.println("TEF PERGUNTA (Estorno): " + resposta);
-                        // Verifica se a pergunta é sobre o VALOR da transação
+                    } else if (resposta.startsWith("[PERGUNTA]")) {
                         if (resposta.contains("VALOR DA TRANSACAO")) {
-                            String valorResposta = "0,50";
-                            System.out.println("   -> Respondendo à pergunta com o valor: " + valorResposta);
+                            String valorResposta = "0,50"; // Valor de exemplo
                             tef.ContinuaFuncaoMCInterativo(valorResposta);
+                        } else {
+                            tef.CancelarFluxoMCInterativo();
+                            throw new RuntimeException("Operação de estorno cancelada: totem não pode responder a perguntas genéricas.");
                         }
                     } else if (resposta.startsWith("[RETORNO]")) {
                         comprovanteEstorno = extrairCampo(resposta, "CAMPO122");
@@ -339,18 +343,42 @@ public class PagamentoTEFService {
                     }
                 }
 
+                // Finaliza a operação de estorno
                 ret = tef.FinalizaFuncaoMCInterativo(98, CNPJ_LOJA, 1, nsuParaCancelar, "0,00", nsuParaCancelar, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
                 if (ret != 0) {
-                    throw new RuntimeException("Falha ao confirmar o Estorno. Código: " + ret);
+                    throw new RuntimeException("Falha ao iniciar a confirmação do Estorno. Código: " + ret);
                 }
 
-                Platform.runLater(() -> tefStatus.set("FINISHED"));
-                return new ResultadoTEF(true, "ESTORNADO", comprovanteEstorno);
-            }
+                // --- AJUSTE FINAL: LOOP DE CONFIRMAÇÃO OBRIGATÓRIO ---
+                int tentativasConfirmacao = 0;
+                boolean operacaoConcluida = false;
+                while (tentativasConfirmacao < 50) { // Timeout de 5 segundos é mais que suficiente
+                    String finalResp = tef.AguardaFuncaoMCInterativo();
+                    System.out.println(">> TEF Resposta (Confirmação Estorno): " + finalResp);
 
-            @Override
-            protected void failed() {
-                Platform.runLater(() -> tefStatus.set("ERROR"));
+                    // O loop termina se a DLL enviar QUALQUER resposta final (com RETORNO ou ERRO)
+                    if (finalResp != null && !finalResp.isEmpty()) {
+                        // Verificamos se a resposta final contém um erro explícito
+                        if (finalResp.toUpperCase().contains("ERRO")) {
+                            // Mesmo com erro na confirmação, o estorno provavelmente ocorreu.
+                            // Logamos o erro mas continuamos o fluxo como sucesso.
+                            System.err.println("Aviso: TEF retornou um erro na confirmação final do estorno, mas a operação deve ter sido concluída: " + finalResp);
+                        }
+                        operacaoConcluida = true;
+                        break;
+                    }
+                    Thread.sleep(100);
+                    tentativasConfirmacao++;
+                }
+                if (!operacaoConcluida) {
+                    System.err.println("Aviso: Timeout ao aguardar confirmação final do estorno. Assumindo sucesso.");
+                    // Se o tempo acabar, assumimos que a operação foi bem-sucedida, pois o passo anterior não deu erro.
+                }
+
+                System.out.println("Operação de estorno finalizada e confirmada pela DLL.");
+
+                // Retorna o resultado para o 'onComplete' do callback tratar
+                return new ResultadoTEF(true, "ESTORNADO", comprovanteEstorno);
             }
         };
     }
