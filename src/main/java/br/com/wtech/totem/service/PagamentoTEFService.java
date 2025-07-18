@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.UUID;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,7 +21,10 @@ public class PagamentoTEFService {
     private final TefClientMCLibrary tef = TefClientMCLibrary.INSTANCE;
     private volatile boolean cancelamentoSolicitado = false;
     private ResultadoTEF ultimoResultado;
-    private String ultimoNsuParaReimpressao;
+    private String ultimoNSU;
+    private String cupomTicketPago;
+    private String valorFormatadoPago;
+    private String nsuPago;
 
     // --- Constantes para a transação ---
     // Em um projeto real, estes viriam de um arquivo de configuração.
@@ -46,9 +48,9 @@ public class PagamentoTEFService {
      * @param valor O valor da transação.
      * @param tipoPagamento O tipo de pagamento ("Débito", "Crédito", etc).
      */
-    public void iniciarProcessoCompletoDePagamento(BigDecimal valor, String tipoPagamento) {
+    public void iniciarProcessoCompletoDePagamento(BigDecimal valor, String tipoPagamento, String ticketCode) {
         Platform.runLater(() -> tefStatus.set("IDLE"));
-        Task<ResultadoTEF> pagamentoTask = criarTaskDePagamento(valor, tipoPagamento);
+        Task<ResultadoTEF> pagamentoTask = criarTaskDePagamento(valor, tipoPagamento, ticketCode);
         // A lógica de atualização de status agora garante a ordem correta das operações.
         pagamentoTask.setOnSucceeded(e -> {
             this.ultimoResultado = pagamentoTask.getValue(); // 1º: Guarda o resultado
@@ -92,9 +94,9 @@ public class PagamentoTEFService {
         new Thread(cancelTask).start();
     }
 
-    public void iniciarProcessoPix(BigDecimal valor, Consumer<ResultadoTEF> onComplete) {
+    public void iniciarProcessoPix(BigDecimal valor, Consumer<ResultadoTEF> onComplete, String ticketCode) {
         // Reutilizamos a Task de pagamento, passando "Pix" como tipo
-        Task<ResultadoTEF> pixTask = criarTaskDePagamento(valor, "Pix");
+        Task<ResultadoTEF> pixTask = criarTaskDePagamento(valor, "Pix", ticketCode);
 
         // Ao terminar com sucesso ou falha, executa o callback que o controller enviou
         pixTask.setOnSucceeded(e -> Platform.runLater(() -> onComplete.accept(pixTask.getValue())));
@@ -106,7 +108,7 @@ public class PagamentoTEFService {
         new Thread(pixTask).start();
     }
 
-    private Task<ResultadoTEF> criarTaskDePagamento(BigDecimal valor, String tipoPagamento) {
+    private Task<ResultadoTEF> criarTaskDePagamento(BigDecimal valor, String tipoPagamento, String ticketCode) {
         return new Task<>() {
             @Override
             protected ResultadoTEF call() throws Exception {
@@ -115,13 +117,24 @@ public class PagamentoTEFService {
 
                 TefOperation operacao = getOperacaoPorTipo(tipoPagamento);
                 String valorFormatado = formatarValorParaTef(valor);
-                String nsuOriginal = UUID.randomUUID().toString().substring(0, 6).toUpperCase();
                 String data = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+                String cupomTicket;
 
-                int ret = tef.IniciaFuncaoMCInterativo(operacao.getCode(), CNPJ_LOJA, 1, nsuOriginal, valorFormatado, nsuOriginal, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
+                try {
+                    // Tenta converter o ticketCode para um número.
+                    long ticketNum = Long.parseLong(ticketCode);
+                    // Formata o número para o padrão de 6 dígitos.
+                    cupomTicket = String.format("%06d", ticketNum);
+                } catch (NumberFormatException e) {
+                    System.err.println("Aviso: ticketCode '" + ticketCode + "' não é numérico. Usando os primeiros 6 caracteres como fallback.");
+                    // Se não for um número, usa o método antigo como segurança.
+                    cupomTicket = ticketCode.length() > 6 ? ticketCode.substring(0, 6) : ticketCode;
+                }
+
+                int ret = tef.IniciaFuncaoMCInterativo(operacao.getCode(), CNPJ_LOJA, 1, cupomTicket, valorFormatado, cupomTicket, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
                 if (ret != 0) { throw new RuntimeException("Erro ao iniciar TEF. Código: " + ret); }
 
-                String nsuRetornadoPeloTef = nsuOriginal;
+                String nsuRetornadoPeloTef = "";
                 String comprovante = "";
 
                 while (true) {
@@ -162,14 +175,7 @@ public class PagamentoTEFService {
                     } else if (resposta.startsWith("[RETORNO]")) {
                         nsuRetornadoPeloTef = extrairCampo(resposta, "CAMPO0133");
                         comprovante = extrairCampo(resposta, "CAMPO122");
-
-                        // AJUSTE: Corrigida a extração do NSU para PIX e Cartão
-                        if (operacao == TefOperation.PIX) {
-                            ultimoNsuParaReimpressao = nsuRetornadoPeloTef; // No PIX, o NSU principal é o correto
-                        } else {
-                            ultimoNsuParaReimpressao = extrairNsuDoComprovante(comprovante);
-                        }
-                        System.out.println(">>> NSU TEF para reimpressão armazenado: " + ultimoNsuParaReimpressao);
+                        System.out.println(">>> NSU TEF para reimpressão armazenado: " + nsuRetornadoPeloTef);
                         break;
                     } else if (resposta.startsWith("[ERROABORTAR]") || resposta.startsWith("[ERRODISPLAY]")) {
                         tef.CancelarFluxoMCInterativo();
@@ -180,8 +186,13 @@ public class PagamentoTEFService {
                 // AJUSTE: A finalização com loop de confirmação agora só ocorre para Cartão
                 if (operacao != TefOperation.PIX) {
                     System.out.println("Finalizando transação de Cartão...");
-                    ret = tef.FinalizaFuncaoMCInterativo(98, CNPJ_LOJA, 1, nsuOriginal, valorFormatado, nsuRetornadoPeloTef, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
+                    ret = tef.FinalizaFuncaoMCInterativo(98, CNPJ_LOJA, 1, cupomTicket, valorFormatado, nsuRetornadoPeloTef, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
                     if (ret != 0) { throw new RuntimeException("Falha ao confirmar a transação no TEF. Código: " + ret); }
+
+                    setCupomTicketPago(cupomTicket);
+                    setValorFormatadoPago(valorFormatado);
+                    setNSUPago(nsuRetornadoPeloTef);
+                    System.out.println(">>> Dados da transação armazenados: Cupom=" + getCupomTicketPago() + ", Valor=" + getValorFormatadoPago());
 
                     // Loop de confirmação obrigatório para cartões
                     int tentativasConfirmacao = 0; boolean confirmado = false;
@@ -210,10 +221,19 @@ public class PagamentoTEFService {
                 String data = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                 String comprovante = "";
 
+                // 1. Resgata os dados da última transação bem-sucedida usando os getters.
+                String cupomTicket = getCupomTicketPago();
+                String valorFormatado = getValorFormatadoPago();
+
+                // 2. Verificação de segurança: se não houver dados, a operação não pode continuar.
+                if (cupomTicket == null || valorFormatado == null) {
+                    throw new IllegalStateException("Não há dados de uma transação anterior para reimprimir.");
+                }
+
                 System.out.println("--- Iniciando Reimpressão para o NSU: " + nsuParaReimprimir + " ---");
 
                 int ret = tef.IniciaFuncaoMCInterativo(
-                        operacao.getCode(), CNPJ_LOJA, 1, nsuParaReimprimir, "0,00",
+                        operacao.getCode(), CNPJ_LOJA, 1, cupomTicket, valorFormatado,
                         nsuParaReimprimir, data, NUMERO_PDV, CODIGO_LOJA, 0, ""
                 );
                 if (ret != 0) {
@@ -254,7 +274,7 @@ public class PagamentoTEFService {
                     }
                 }
 
-                ret = tef.FinalizaFuncaoMCInterativo(98, CNPJ_LOJA, 1, nsuParaReimprimir, "0,00", nsuParaReimprimir, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
+                ret = tef.FinalizaFuncaoMCInterativo(98, CNPJ_LOJA, 1, cupomTicket, valorFormatado, nsuParaReimprimir, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
                 if (ret != 0) {
                     throw new RuntimeException("Falha ao confirmar a Reimpressão. Código: " + ret);
                 }
@@ -291,18 +311,29 @@ public class PagamentoTEFService {
             @Override
             protected ResultadoTEF call() throws Exception {
                 cancelamentoSolicitado = false;
-                // Platform.runLater(() -> tefStatus.set("STARTED")); // Não é mais necessário com callback
 
                 TefOperation operacao = TefOperation.CANCEL;
                 String data = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                 String comprovanteEstorno = "";
 
+                // 1. Resgata os dados da última transação bem-sucedida usando os getters.
+                String cupomTicket = getCupomTicketPago();
+                String valorFormatado = getValorFormatadoPago();
+
+                // 2. Verificação de segurança: se não houver dados, a operação não pode continuar.
+                if (cupomTicket == null || valorFormatado == null) {
+                    throw new IllegalStateException("Não há dados de uma transação anterior para reimprimir.");
+                }
+
                 System.out.println("--- Iniciando ESTORNO para o NSU: " + nsuParaCancelar + " ---");
 
-                int ret = tef.IniciaFuncaoMCInterativo(operacao.getCode(), CNPJ_LOJA, 1, nsuParaCancelar, "0,00", nsuParaCancelar, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
+                int ret = tef.IniciaFuncaoMCInterativo(operacao.getCode(), CNPJ_LOJA, 1, cupomTicket, valorFormatado, nsuParaCancelar, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
                 if (ret != 0) {
                     throw new RuntimeException("Erro ao iniciar Estorno. Código: " + ret);
                 }
+
+
+                String nsuRetornadoPeloTefEstorno = "";
 
                 // Loop principal para obter o resultado da operação
                 while (true) {
@@ -328,13 +359,13 @@ public class PagamentoTEFService {
                         }
                     } else if (resposta.startsWith("[PERGUNTA]")) {
                         if (resposta.contains("VALOR DA TRANSACAO")) {
-                            String valorResposta = "0,50"; // Valor de exemplo
-                            tef.ContinuaFuncaoMCInterativo(valorResposta);
+                            tef.ContinuaFuncaoMCInterativo(valorFormatado);
                         } else {
                             tef.CancelarFluxoMCInterativo();
                             throw new RuntimeException("Operação de estorno cancelada: totem não pode responder a perguntas genéricas.");
                         }
                     } else if (resposta.startsWith("[RETORNO]")) {
+                        nsuRetornadoPeloTefEstorno = extrairCampo(resposta, "CAMPO0133");
                         comprovanteEstorno = extrairCampo(resposta, "CAMPO122");
                         break;
                     } else if (resposta.startsWith("[ERROABORTAR]") || resposta.startsWith("[ERRODISPLAY]")) {
@@ -344,7 +375,7 @@ public class PagamentoTEFService {
                 }
 
                 // Finaliza a operação de estorno
-                ret = tef.FinalizaFuncaoMCInterativo(98, CNPJ_LOJA, 1, nsuParaCancelar, "0,00", nsuParaCancelar, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
+                ret = tef.FinalizaFuncaoMCInterativo(98, CNPJ_LOJA, 1, cupomTicket, valorFormatado, nsuRetornadoPeloTefEstorno, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
                 if (ret != 0) {
                     throw new RuntimeException("Falha ao iniciar a confirmação do Estorno. Código: " + ret);
                 }
@@ -392,12 +423,6 @@ public class PagamentoTEFService {
         return ultimoResultado;
     }
 
-    public String getUltimoNsuParaReimpressao() {
-        return ultimoNsuParaReimpressao;
-    }
-
-    // --- MÉTODOS AUXILIARES ---
-
     public void setUltimoResultado(ResultadoTEF resultado) {
         this.ultimoResultado = resultado;
     }
@@ -428,11 +453,27 @@ public class PagamentoTEFService {
         return matcher.find() ? matcher.group(1) : "N/A";
     }
 
-    private String extrairNsuDoComprovante(String textoComprovante) {
-        if (textoComprovante == null) return null;
-        Pattern pattern = Pattern.compile("\\(NSU TEF\\s*:\\s*(\\d+)\\)");
-        Matcher matcher = pattern.matcher(textoComprovante);
-        if (matcher.find()) { return matcher.group(1); }
-        return null;
+    public String getCupomTicketPago() {
+        return cupomTicketPago;
+    }
+
+    public void setCupomTicketPago(String cupomTicketPago) {
+        this.cupomTicketPago = cupomTicketPago;
+    }
+
+    public String getValorFormatadoPago() {
+        return valorFormatadoPago;
+    }
+
+    public void setValorFormatadoPago(String valorFormatadoPago) {
+        this.valorFormatadoPago = valorFormatadoPago;
+    }
+
+    public String getNSUPago() {
+        return nsuPago;
+    }
+
+    public void setNSUPago(String nsuPago) {
+        this.nsuPago = nsuPago;
     }
 }
