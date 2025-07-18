@@ -1,5 +1,6 @@
 package br.com.wtech.totem.controller;
 
+import br.com.wtech.totem.entity.Ticket;
 import br.com.wtech.totem.service.*;
 import br.com.wtech.totem.util.NavegacaoUtil;
 import javafx.application.Platform;
@@ -31,6 +32,7 @@ public class TelaFormaEscolhidaController {
     private void initialize() {
         String forma = formaPagamentoService.getFormaPagamento();
         BigDecimal valor = leitorService.getTicketAtual().getFinalValue();
+        String ticket = leitorService.getTicketAtual().getTicketCode();
 
         labelFormaEscolhida.setText("Processando pagamento com " + forma + "...");
         labelValorTotal.setText(leitorService.getValorTotalFormatado());
@@ -46,7 +48,7 @@ public class TelaFormaEscolhidaController {
             };
 
             // 2. Inicia o PIX e entrega as instruções
-            pagamentoTEFService.iniciarProcessoPix(valor, aoFinalizarPix);
+            pagamentoTEFService.iniciarProcessoPix(valor, aoFinalizarPix, ticket);
 
         } else {
             // --- Caminho Padrão para Cartão (que já funciona) ---
@@ -79,10 +81,7 @@ public class TelaFormaEscolhidaController {
             };
 
             pagamentoTEFService.tefStatusProperty().addListener(this.tefStatusListener);
-            pagamentoTEFService.iniciarProcessoCompletoDePagamento(valor, forma);
+            pagamentoTEFService.iniciarProcessoCompletoDePagamento(valor, forma, ticket);
         }
     }
-
-    // NOTA: Para o callback funcionar, o PagamentoTEFService precisa ter o método
-    // public void setUltimoResultado(ResultadoTEF resultado) { this.ultimoResultado = resultado; }
 }

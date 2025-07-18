@@ -56,7 +56,7 @@ public class TelaLeitorController {
     private void handleLogoClick(MouseEvent event) {
         System.out.println("--- LOGO CLICADO: INICIANDO TESTE DE ESTORNO ---");
 
-        final String nsuParaCancelar = pagamentoTEFService.getUltimoNsuParaReimpressao();
+        final String nsuParaCancelar = pagamentoTEFService.getNSUPago();
         final String codigoDoTicket = this.ultimoTicketCodeLido;
 
         if (codigoDoTicket == null || codigoDoTicket.isBlank()) {
@@ -90,7 +90,7 @@ public class TelaLeitorController {
     private void handleImgClick(MouseEvent event) {
         System.out.println("--- BARRA CLICADA: INICIANDO TESTE DE REIMPRESSÃO ---");
 
-        final String nsuParaReimprimir = pagamentoTEFService.getUltimoNsuParaReimpressao();
+        final String nsuParaReimprimir = pagamentoTEFService.getNSUPago();
         final String codigoDoTicket = this.ultimoTicketCodeLido;
 
         if (codigoDoTicket == null || codigoDoTicket.isBlank()) {
