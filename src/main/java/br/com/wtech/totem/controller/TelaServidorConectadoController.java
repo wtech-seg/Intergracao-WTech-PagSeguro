@@ -33,6 +33,8 @@ public class TelaServidorConectadoController {
                 boolean shouldNavigate = false;
                 String destination = "";
 
+                System.out.println("TELA SERVIDOR STATUS: " + newStatus);
+
                 switch (newStatus) {
                     case "WAITING_FOR_CARD":
                         destination = "/fxml/tela_aguardando_pagamento.fxml";

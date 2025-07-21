@@ -21,10 +21,10 @@ public class PagamentoTEFService {
     private final TefClientMCLibrary tef = TefClientMCLibrary.INSTANCE;
     private volatile boolean cancelamentoSolicitado = false;
     private ResultadoTEF ultimoResultado;
-    private String ultimoNSU;
     private String cupomTicketPago;
     private String valorFormatadoPago;
     private String nsuPago;
+    private String tipoPago;
 
     // --- Constantes para a transação ---
     // Em um projeto real, estes viriam de um arquivo de configuração.
@@ -65,11 +65,10 @@ public class PagamentoTEFService {
     }
 
     // AJUSTE: O método agora aceita um "callback" a ser executado no final.
-    public void iniciarReimpressao(String nsuParaReimprimir, Consumer<ResultadoTEF> onComplete) {
+    public void iniciarReimpressao(Consumer<ResultadoTEF> onComplete) {
         Platform.runLater(() -> tefStatus.set("IDLE"));
-        Task<ResultadoTEF> reprintTask = criarTaskDeReimpressao(nsuParaReimprimir);
+        Task<ResultadoTEF> reprintTask = criarTaskDeReimpressao(); // Não precisa mais de parâmetros
 
-        // Ao terminar, executa o callback que o controller enviou.
         reprintTask.setOnSucceeded(e -> Platform.runLater(() -> onComplete.accept(reprintTask.getValue())));
         reprintTask.setOnFailed(e -> {
             ResultadoTEF erro = new ResultadoTEF(false, "ERRO", getTaskExceptionMessage(reprintTask));
@@ -80,9 +79,9 @@ public class PagamentoTEFService {
     }
 
     // AJUSTE: O método agora aceita um "callback" a ser executado no final.
-    public void iniciarCancelamentoAdministrativo(String nsuParaCancelar, Consumer<ResultadoTEF> onComplete) {
+    public void iniciarCancelamentoAdministrativo(Consumer<ResultadoTEF> onComplete) {
         Platform.runLater(() -> tefStatus.set("IDLE"));
-        Task<ResultadoTEF> cancelTask = criarTaskDeCancelamento(nsuParaCancelar);
+        Task<ResultadoTEF> cancelTask = criarTaskDeCancelamento();
 
         // Ao terminar, executa o callback que o controller enviou.
         cancelTask.setOnSucceeded(e -> Platform.runLater(() -> onComplete.accept(cancelTask.getValue())));
@@ -92,20 +91,6 @@ public class PagamentoTEFService {
         });
 
         new Thread(cancelTask).start();
-    }
-
-    public void iniciarProcessoPix(BigDecimal valor, Consumer<ResultadoTEF> onComplete, String ticketCode) {
-        // Reutilizamos a Task de pagamento, passando "Pix" como tipo
-        Task<ResultadoTEF> pixTask = criarTaskDePagamento(valor, "Pix", ticketCode);
-
-        // Ao terminar com sucesso ou falha, executa o callback que o controller enviou
-        pixTask.setOnSucceeded(e -> Platform.runLater(() -> onComplete.accept(pixTask.getValue())));
-        pixTask.setOnFailed(e -> {
-            ResultadoTEF erro = new ResultadoTEF(false, "ERRO", getTaskExceptionMessage(pixTask));
-            Platform.runLater(() -> onComplete.accept(erro));
-        });
-
-        new Thread(pixTask).start();
     }
 
     private Task<ResultadoTEF> criarTaskDePagamento(BigDecimal valor, String tipoPagamento, String ticketCode) {
@@ -183,50 +168,60 @@ public class PagamentoTEFService {
                     }
                 }
 
-                // AJUSTE: A finalização com loop de confirmação agora só ocorre para Cartão
-                if (operacao != TefOperation.PIX) {
-                    System.out.println("Finalizando transação de Cartão...");
-                    ret = tef.FinalizaFuncaoMCInterativo(98, CNPJ_LOJA, 1, cupomTicket, valorFormatado, nsuRetornadoPeloTef, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
-                    if (ret != 0) { throw new RuntimeException("Falha ao confirmar a transação no TEF. Código: " + ret); }
-
-                    setCupomTicketPago(cupomTicket);
-                    setValorFormatadoPago(valorFormatado);
-                    setNSUPago(nsuRetornadoPeloTef);
-                    System.out.println(">>> Dados da transação armazenados: Cupom=" + getCupomTicketPago() + ", Valor=" + getValorFormatadoPago());
-
-                    // Loop de confirmação obrigatório para cartões
-                    int tentativasConfirmacao = 0; boolean confirmado = false;
-                    while (tentativasConfirmacao < 100) {
-                        String finalResp = tef.AguardaFuncaoMCInterativo();
-                        if (finalResp != null && finalResp.contains("CONFIRMADA COM SUCESSO")) { confirmado = true; break; }
-                        if (finalResp != null && finalResp.toUpperCase().contains("ERRO")) { throw new RuntimeException("TEF retornou erro na confirmação final: " + finalResp); }
-                        Thread.sleep(100); tentativasConfirmacao++;
-                    }
-                    if (!confirmado) { throw new RuntimeException("Timeout: Não foi recebida a confirmação final da DLL."); }
-                } else {
-                    System.out.println("Finalização de PIX. Transação já confirmada.");
+                System.out.println("Finalizando transação com a DLL...");
+                // A chamada de finalização agora é feita para TODOS os tipos de pagamento.
+                ret = tef.FinalizaFuncaoMCInterativo(98, CNPJ_LOJA, 1, cupomTicket, valorFormatado, nsuRetornadoPeloTef, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
+                if (ret != 0) {
+                    throw new RuntimeException("Falha ao confirmar a transação no TEF. Código: " + ret);
                 }
 
+                setCupomTicketPago(cupomTicket);
+                setValorFormatadoPago(valorFormatado);
+                setNSUPago(nsuRetornadoPeloTef);
+                setTipoPago(tipoPagamento);
+                System.out.println(">>> Dados da transação armazenados: Cupom=" + getCupomTicketPago() + ", Valor=" + getValorFormatadoPago());
+
+                System.out.println("Aguardando confirmação final da transação de Cartão...");
+                int tentativasConfirmacao = 0;
+                boolean confirmado = false;
+                while (tentativasConfirmacao < 100) {
+                    String finalResp = tef.AguardaFuncaoMCInterativo();
+                    if (finalResp != null && finalResp.contains("CONFIRMADA COM SUCESSO")) {
+                        confirmado = true;
+                        break;
+                    }
+                    if (finalResp != null && finalResp.toUpperCase().contains("ERRO")) {
+                        throw new RuntimeException("TEF retornou erro na confirmação final: " + finalResp);
+                    }
+                    Thread.sleep(100);
+                    tentativasConfirmacao++;
+                }
+                if (!confirmado) {
+                    throw new RuntimeException("Timeout: Não foi recebida a confirmação final da DLL.");
+                }
+
+                System.out.println("Transação finalizada com sucesso!");
                 return new ResultadoTEF(true, "APROVADO", comprovante);
             }
         };
     }
 
-    private Task<ResultadoTEF> criarTaskDeReimpressao(String nsuParaReimprimir) {
+    private Task<ResultadoTEF> criarTaskDeReimpressao() {
         return new Task<>() {
             @Override
             protected ResultadoTEF call() throws Exception {
                 cancelamentoSolicitado = false;
-                TefOperation operacao = TefOperation.REPRINT;
+
+                String nsuParaReimprimir = getNSUPago();
+                String cupomTicket = getCupomTicketPago();
+                String valorFormatado = getValorFormatadoPago();
+                String ultimoTipoPago = getTipoPago();
+
+                TefOperation operacao = "Pix".equalsIgnoreCase(ultimoTipoPago) ? TefOperation.REPRINT_PIX : TefOperation.REPRINT;
                 String data = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                 String comprovante = "";
 
-                // 1. Resgata os dados da última transação bem-sucedida usando os getters.
-                String cupomTicket = getCupomTicketPago();
-                String valorFormatado = getValorFormatadoPago();
-
-                // 2. Verificação de segurança: se não houver dados, a operação não pode continuar.
-                if (cupomTicket == null || valorFormatado == null) {
+                if (nsuParaReimprimir == null || cupomTicket == null || valorFormatado == null || ultimoTipoPago == null) {
                     throw new IllegalStateException("Não há dados de uma transação anterior para reimprimir.");
                 }
 
@@ -306,23 +301,23 @@ public class PagamentoTEFService {
         };
     }
 
-    private Task<ResultadoTEF> criarTaskDeCancelamento(String nsuParaCancelar) {
+    private Task<ResultadoTEF> criarTaskDeCancelamento() {
         return new Task<>() {
             @Override
             protected ResultadoTEF call() throws Exception {
                 cancelamentoSolicitado = false;
 
-                TefOperation operacao = TefOperation.CANCEL;
+                String nsuParaCancelar = getNSUPago();
+                String cupomTicket = getCupomTicketPago();
+                String valorFormatado = getValorFormatadoPago();
+                String ultimoTipoPago = getTipoPago();
+
+                TefOperation operacao = "Pix".equalsIgnoreCase(ultimoTipoPago) ? TefOperation.CANCEL_PIX : TefOperation.CANCEL;
                 String data = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
                 String comprovanteEstorno = "";
 
-                // 1. Resgata os dados da última transação bem-sucedida usando os getters.
-                String cupomTicket = getCupomTicketPago();
-                String valorFormatado = getValorFormatadoPago();
-
-                // 2. Verificação de segurança: se não houver dados, a operação não pode continuar.
-                if (cupomTicket == null || valorFormatado == null) {
-                    throw new IllegalStateException("Não há dados de uma transação anterior para reimprimir.");
+                if (nsuParaCancelar == null || cupomTicket == null || valorFormatado == null || ultimoTipoPago == null) {
+                    throw new IllegalStateException("Não há dados de uma transação anterior para estorno.");
                 }
 
                 System.out.println("--- Iniciando ESTORNO para o NSU: " + nsuParaCancelar + " ---");
@@ -475,5 +470,13 @@ public class PagamentoTEFService {
 
     public void setNSUPago(String nsuPago) {
         this.nsuPago = nsuPago;
+    }
+
+    public String getTipoPago() {
+        return tipoPago;
+    }
+
+    public void setTipoPago(String tipoPago) {
+        this.tipoPago = tipoPago;
     }
 }

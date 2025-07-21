@@ -33,7 +33,7 @@ public class TelaAguardandoPagamentoController {
                 boolean isTransactionOver = false;
                 String destination = "";
 
-                System.out.println("newStatus: " + newStatus);
+                System.out.println("TELA AGUARDANDO STATUS: " + newStatus);
 
                 switch (newStatus) {
                     case "FINISHED":

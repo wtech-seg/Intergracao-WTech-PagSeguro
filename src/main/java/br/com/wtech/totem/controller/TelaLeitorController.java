@@ -81,7 +81,7 @@ public class TelaLeitorController {
         };
 
         // AJUSTE: Passa o callback como segundo argumento para o serviço.
-        pagamentoTEFService.iniciarCancelamentoAdministrativo(nsuParaCancelar, acaoAoFinalizar);
+        pagamentoTEFService.iniciarCancelamentoAdministrativo(acaoAoFinalizar);
     }
 
     /**
@@ -114,7 +114,7 @@ public class TelaLeitorController {
         };
 
         // AJUSTE: Passa o callback como segundo argumento para o serviço.
-        pagamentoTEFService.iniciarReimpressao(nsuParaReimprimir, acaoAoFinalizar);
+        pagamentoTEFService.iniciarReimpressao(acaoAoFinalizar);
     }
 
     /**

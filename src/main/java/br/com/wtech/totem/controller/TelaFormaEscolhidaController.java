@@ -37,29 +37,16 @@ public class TelaFormaEscolhidaController {
         labelFormaEscolhida.setText("Processando pagamento com " + forma + "...");
         labelValorTotal.setText(leitorService.getValorTotalFormatado());
 
-        // --- AJUSTE: LÓGICA HÍBRIDA ---
-        if ("Pix".equalsIgnoreCase(forma)) {
-            // --- Caminho Expresso para o PIX ---
-
-            // 1. Define o que fazer quando a transação PIX terminar
-            Consumer<ResultadoTEF> aoFinalizarPix = (resultado) -> {
-                pagamentoTEFService.setUltimoResultado(resultado); // Guarda o resultado
-                navegaPara.trocaTela("/fxml/tela_pagamento_selecionado.fxml", root); // Navega para a tela de resultado
-            };
-
-            // 2. Inicia o PIX e entrega as instruções
-            pagamentoTEFService.iniciarProcessoPix(valor, aoFinalizarPix, ticket);
-
-        } else {
-            // --- Caminho Padrão para Cartão (que já funciona) ---
-
             this.tefStatusListener = (obs, oldStatus, newStatus) -> {
                 Platform.runLater(() -> {
                     boolean shouldNavigate = false;
                     String destination = "";
 
+                    System.out.println("TELA FORMA STATUS: " + newStatus);
+
                     switch (newStatus) {
                         case "SERVER_CONNECTED":
+                        case "STARTED":
                             destination = "/fxml/tela_servidor_conectado.fxml";
                             shouldNavigate = true;
                             break;
@@ -82,6 +69,5 @@ public class TelaFormaEscolhidaController {
 
             pagamentoTEFService.tefStatusProperty().addListener(this.tefStatusListener);
             pagamentoTEFService.iniciarProcessoCompletoDePagamento(valor, forma, ticket);
-        }
     }
 }

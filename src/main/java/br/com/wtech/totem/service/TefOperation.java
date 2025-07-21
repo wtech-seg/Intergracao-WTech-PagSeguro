@@ -6,10 +6,12 @@ package br.com.wtech.totem.service;
  */
 public enum TefOperation {
     CREDIT(0),    // crédito à vista
-    DEBIT(1),     // débito à vista
+    DEBIT(4),     // débito à vista
     CANCEL(5),    // cancelamento
     REPRINT(6),  // reimpressão
-    PIX(51);
+    PIX(51),
+    CANCEL_PIX(54),
+    REPRINT_PIX(59);
 
     private final int code;
 
