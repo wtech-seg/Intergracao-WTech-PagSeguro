@@ -1,5 +1,6 @@
 package br.com.wtech.totem.controller;
 
+import br.com.wtech.totem.entity.Ticket;
 import br.com.wtech.totem.service.ImpressaoService;
 import br.com.wtech.totem.service.LeitorService;
 import br.com.wtech.totem.util.NavegacaoUtil;
@@ -25,6 +26,8 @@ public class TelaImpressaoController {
     private void initialize() {
         System.out.println("TELA DE IMPRESSÃO: Iniciando processos finais...");
 
+        Ticket ticketAtual = leitorService.getTicketAtual();
+
         // Garante que o valor da compra ainda seja exibido nesta tela.
         if (labelValorTotal != null) {
             labelValorTotal.setText(leitorService.getValorTotalFormatado());
@@ -33,7 +36,12 @@ public class TelaImpressaoController {
         // Executa as operações de finalização no banco de dados.
         // É importante fazer isso antes de limpar os dados do ticket.
         impressaoService.registrarOperacoesDeImpressao();
-        leitorService.finalizarTicketComDataDeLeitura();
+
+        if (ticketAtual.getTipoPagamento() != 6) {
+            leitorService.finalizarTicketComDataDeLeitura();
+        } else {
+            System.out.println("TELA DE IMPRESSÃO: Pulando finalização do ticket pois o tipo de pagamento é 6.");
+        }
 
         // Inicia o contador para retornar automaticamente à tela inicial.
         retornarAoInicioAposDelay();

@@ -127,18 +127,41 @@ public class TelaLeitorController {
         if (valorLido == null || valorLido.isBlank()) { return; }
         inputLeitura.setDisable(true);
 
-        try {
-            Ticket ticketEncontrado = leitorService.buscarTicket(valorLido);
-            this.ultimoTicketCodeLido = ticketEncontrado.getTicketCode();
-            leitorService.setTicketAtual(ticketEncontrado);
-            navegaPara.trocaTela("/fxml/tela_processando.fxml", inputLeitura);
-        } catch (EmptyResultDataAccessException e) {
-            this.ultimoTicketCodeLido = null;
-            iniciarCooldownParaNovaLeitura();
-        } catch (Exception e) {
-            this.ultimoTicketCodeLido = null;
-            e.printStackTrace();
-            iniciarCooldownParaNovaLeitura();
+        if (leitorService.isTicketVinculadoAPessoa(valorLido)) {
+            // --- CAMINHO 1: TICKET VINCULADO (FLUXO DIRETO) ---
+            System.out.println("FLUXO VINCULADO: Ticket '" + valorLido + "' pertence a um mensalista. Finalizando...");
+
+            try {
+                Ticket ticketEncontrado = leitorService.buscarTicket(valorLido);
+                leitorService.setTicketAtual(ticketEncontrado);
+
+                // Criamos um "Resultado Falso" de pagamento aprovado para a tela de resultado entender.
+                ResultadoTEF resultadoVinculado = new ResultadoTEF(true, "APROVADO", "MENSALISTA - SAÍDA LIBERADA");
+                pagamentoTEFService.setUltimoResultado(resultadoVinculado);
+
+                // Navega direto para a tela de pagamento selecionado (que mostrará "APROVADO")
+                navegaPara.trocaTela("/fxml/tela_processando.fxml", inputLeitura);
+
+            } catch (Exception e) {
+                System.err.println("Erro ao processar ticket vinculado: " + e.getMessage());
+                iniciarCooldownParaNovaLeitura();
+            }
+        } else {
+            // --- CAMINHO 2: TICKET NÃO VINCULADO (FLUXO DE PAGAMENTO NORMAL QUE JÁ FUNCIONAVA) ---
+            System.out.println("FLUXO NORMAL: Ticket '" + valorLido + "' não vinculado. Indo para a tela de pagamento.");
+            try {
+                Ticket ticketEncontrado = leitorService.buscarTicket(valorLido);
+                this.ultimoTicketCodeLido = ticketEncontrado.getTicketCode();
+                leitorService.setTicketAtual(ticketEncontrado);
+                navegaPara.trocaTela("/fxml/tela_processando.fxml", inputLeitura);
+            } catch (EmptyResultDataAccessException e) {
+                this.ultimoTicketCodeLido = null;
+                iniciarCooldownParaNovaLeitura();
+            } catch (Exception e) {
+                this.ultimoTicketCodeLido = null;
+                e.printStackTrace();
+                iniciarCooldownParaNovaLeitura();
+            }
         }
     }
 

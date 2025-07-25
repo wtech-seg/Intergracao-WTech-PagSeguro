@@ -1,6 +1,7 @@
 package br.com.wtech.totem.service;
 
 import br.com.wtech.totem.entity.Ticket;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
@@ -127,6 +128,51 @@ public class LeitorService {
 
     public String getUltimoTicketPago() {
         return ultimoTicketPagoCode;
+    }
+
+    /**
+     * Verifica se um ticket está vinculado a uma pessoa E se sua data de validade
+     * em est_tickets ainda não expirou.
+     * @param ticketCode O código do ticket a ser verificado.
+     * @return true se o ticket for de um mensalista válido, false caso contrário.
+     */
+    public boolean isTicketVinculadoAPessoa(String ticketCode) {
+        System.out.println("LEITOR SERVICE: Verificando vínculo e validade do ticket '" + ticketCode + "'.");
+
+        // AJUSTE: A query agora junta as duas tabelas para pegar a dt_final correta.
+        String sql = "SELECT T.dt_final " +
+                "FROM est_tickets T " +
+                "INNER JOIN ace_pessoas P ON T.cd_ticket = P.cd_tag " +
+                "WHERE T.cd_ticket = ?";
+
+        try {
+            // Busca a data de validade do banco de dados usando a query com JOIN.
+            LocalDateTime dtFinalDoBanco = jdbc.queryForObject(sql, new Object[]{ticketCode}, LocalDateTime.class);
+
+            if (dtFinalDoBanco == null) {
+                System.out.println("LEITOR SERVICE: Vínculo encontrado para o ticket '" + ticketCode + "', mas a data final é nula. Acesso negado.");
+                return false;
+            }
+
+            // Compara a data de validade com a data e hora atuais.
+            boolean isValido = dtFinalDoBanco.isAfter(LocalDateTime.now());
+
+            if (isValido) {
+                System.out.println("LEITOR SERVICE: Vínculo encontrado e válido. Data final: " + dtFinalDoBanco);
+            } else {
+                System.err.println("LEITOR SERVICE: Vínculo encontrado, mas a data de validade está EXPIRADA. Data final: " + dtFinalDoBanco);
+            }
+
+            return isValido;
+
+        } catch (EmptyResultDataAccessException e) {
+            // Este erro agora significa que o ticket ou não existe em est_tickets ou não tem um par em ace_pessoas.
+            System.out.println("LEITOR SERVICE: Nenhum vínculo de mensalista válido encontrado para o ticket '" + ticketCode + "'.");
+            return false;
+        } catch (Exception e) {
+            System.err.println("LEITOR SERVICE: Ocorreu um erro ao verificar o vínculo do ticket: " + e.getMessage());
+            return false; // Retorna falso em caso de qualquer outro erro.
+        }
     }
 
     // --- RowMapper para a entidade Ticket ---

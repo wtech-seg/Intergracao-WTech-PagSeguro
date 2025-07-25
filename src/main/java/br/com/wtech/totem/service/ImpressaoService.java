@@ -59,11 +59,31 @@ public class ImpressaoService {
 
     private void registrarTagLeitura(Ticket ticket) {
         System.out.println("IMPRESSAO SERVICE: Registrando tag de leitura para o ticket: " + ticket.getTicketCode());
+        // 1. Define o valor padrão para o tipo de leitura.
+        char tipoLeitura = 'Q';
+
+        // 2. Verifica se o tipo de pagamento do ticket é 6.
+        if (ticket.getTipoPagamento() != null && ticket.getTipoPagamento() == 6) {
+            System.out.println("IMPRESSAO SERVICE: Tipo de pagamento 6 detectado. Alterando tipo de leitura para 'T'.");
+            tipoLeitura = 'T'; // Se for 6, altera para 'T'.
+        }
+
         String ipDestino = "Q192.168.0.96";
+        String ipDoTotem = getIpLocal();
+
         String sql = "INSERT INTO ace_tag_leitura (NU_HASH_TAG, DT_LEITURA, CD_PORTA, FL_TIPO_LEITURA, DML_USR, DML_DATA, DML_IP, FL_AGUARDANDO, NU_TAG) " +
-                "VALUES(?, ?, ?, 'Q', 'autopagamento', ?, ?, 'A', ?)";
-        jdbc.update(sql, ticket.getTicketCode(), LocalDateTime.now(), ipDestino, LocalDateTime.now(), ipDestino, ticket.getTicketCode());
-        System.out.println("IMPRESSAO SERVICE: Tag de leitura inserida com sucesso.");
+                "VALUES(?, ?, ?, ?, 'autopagamento', ?, ?, 'A', ?)";
+
+        // 3. Usa a variável 'tipoLeitura' no comando INSERT.
+        jdbc.update(sql,
+                ticket.getTicketCode(),
+                LocalDateTime.now(),
+                ipDestino,
+                String.valueOf(tipoLeitura), // Converte o char para String para o JDBC
+                LocalDateTime.now(),
+                ipDoTotem,
+                ticket.getTicketCode()
+        );System.out.println("IMPRESSAO SERVICE: Tag de leitura inserida com sucesso.");
     }
 
     private String getIpLocal() {
