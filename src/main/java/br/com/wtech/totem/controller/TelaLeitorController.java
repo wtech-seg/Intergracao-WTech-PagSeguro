@@ -128,24 +128,20 @@ public class TelaLeitorController {
         inputLeitura.setDisable(true);
 
         if (leitorService.isTicketVinculadoAPessoa(valorLido)) {
-            // --- CAMINHO 1: TICKET VINCULADO (FLUXO DIRETO) ---
-            System.out.println("FLUXO VINCULADO: Ticket '" + valorLido + "' pertence a um mensalista. Finalizando...");
+            // --- CAMINHO 1: VINCULADO (FLUXO DIRETO) ---
+            System.out.println("FLUXO VINCULADO: Tag '" + valorLido + "' pertence a um mensalista válido. Simulando ticket pago.");
 
-            try {
-                Ticket ticketEncontrado = leitorService.buscarTicket(valorLido);
-                leitorService.setTicketAtual(ticketEncontrado);
+            // 1. Cria um objeto Ticket "fantasma" com os dados mínimos necessários.
+            Ticket ticketFantasma = new Ticket();
+            ticketFantasma.setTicketCode(valorLido);
+            ticketFantasma.setStatus(3); // Seta o status para PAGO (3), para a próxima tela entender.
 
-                // Criamos um "Resultado Falso" de pagamento aprovado para a tela de resultado entender.
-                ResultadoTEF resultadoVinculado = new ResultadoTEF(true, "APROVADO", "MENSALISTA - SAÍDA LIBERADA");
-                pagamentoTEFService.setUltimoResultado(resultadoVinculado);
+            // 2. Define este ticket como o "ticket atual".
+            leitorService.setTicketAtual(ticketFantasma);
 
-                // Navega direto para a tela de pagamento selecionado (que mostrará "APROVADO")
-                navegaPara.trocaTela("/fxml/tela_processando.fxml", inputLeitura);
+            // 3. Navega para a tela de processamento, que irá ler o status 3 e seguir para a impressão.
+            navegaPara.trocaTela("/fxml/tela_processando.fxml", inputLeitura);
 
-            } catch (Exception e) {
-                System.err.println("Erro ao processar ticket vinculado: " + e.getMessage());
-                iniciarCooldownParaNovaLeitura();
-            }
         } else {
             // --- CAMINHO 2: TICKET NÃO VINCULADO (FLUXO DE PAGAMENTO NORMAL QUE JÁ FUNCIONAVA) ---
             System.out.println("FLUXO NORMAL: Ticket '" + valorLido + "' não vinculado. Indo para a tela de pagamento.");

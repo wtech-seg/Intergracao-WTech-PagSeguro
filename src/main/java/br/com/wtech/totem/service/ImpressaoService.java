@@ -37,6 +37,19 @@ public class ImpressaoService {
         leitorService.setUltimoTicketPago(ticket.getTicketCode());
     }
 
+    public void registrarOperacoesDeImpressaoMensalista() {
+        Ticket ticket = leitorService.getTicketAtual();
+
+        if (ticket == null || ticket.getTicketCode() == null) {
+            System.err.println("IMPRESSAO SERVICE: Operação cancelada. Nenhum ticket ativo.");
+            return;
+        }
+
+        registrarImpressaoRecibo(ticket);
+        registrarTagLeitura(ticket);
+        atualizarStatusPessoaParaInativo(ticket.getTicketCode());
+    }
+
     /**
      * Atualiza o status do ticket para 2 (REGISTRA SAÍDA).
      * Chamado quando a impressão é iniciada.
@@ -63,8 +76,8 @@ public class ImpressaoService {
         char tipoLeitura = 'Q';
 
         // 2. Verifica se o tipo de pagamento do ticket é 6.
-        if (ticket.getTipoPagamento() != null && ticket.getTipoPagamento() == 6) {
-            System.out.println("IMPRESSAO SERVICE: Tipo de pagamento 6 detectado. Alterando tipo de leitura para 'T'.");
+        if (leitorService.isTicketVinculadoAPessoa(ticket.getTicketCode())) {
+            System.out.println("IMPRESSAO SERVICE: Tipo de pagamento mensalista detectado. Alterando tipo de leitura para 'T'.");
             tipoLeitura = 'T'; // Se for 6, altera para 'T'.
         }
 
@@ -131,4 +144,27 @@ public class ImpressaoService {
             System.err.println("CANCELAMENTO SERVICE: Nenhuma linha foi atualizada para o ticket " + ticketCode + ".");
         }
     }
+
+    /**
+     * Atualiza o status de uma pessoa na tabela ace_pessoas para 0 (inativo).
+     * Chamado quando um mensalista finaliza sua saída.
+     * @param ticketCode A tag da pessoa a ser atualizada.
+     */
+    public void atualizarStatusPessoaParaInativo(String ticketCode) {
+        if (ticketCode == null || ticketCode.isBlank()) {
+            System.err.println("IMPRESSAO SERVICE: Operação cancelada. Nenhum código de ticket fornecido para inativar pessoa.");
+            return;
+        }
+
+        System.out.println("IMPRESSAO SERVICE: Atualizando status para '0' (Inativo) na tabela ace_pessoas para a tag: " + ticketCode);
+        String sql = "UPDATE ace_pessoas SET fl_status = 0 WHERE cd_tag = ?";
+        int linhasAfetadas = jdbc.update(sql, ticketCode);
+
+        if (linhasAfetadas > 0) {
+            System.out.println("IMPRESSAO SERVICE: Status da pessoa com tag " + ticketCode + " atualizado para 0 com sucesso.");
+        } else {
+            System.err.println("IMPRESSAO SERVICE: Nenhuma pessoa encontrada com a tag " + ticketCode + " para atualizar o status.");
+        }
+    }
+
 }

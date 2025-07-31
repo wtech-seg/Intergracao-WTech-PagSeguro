@@ -130,48 +130,26 @@ public class LeitorService {
         return ultimoTicketPagoCode;
     }
 
-    /**
-     * Verifica se um ticket está vinculado a uma pessoa E se sua data de validade
-     * em est_tickets ainda não expirou.
-     * @param ticketCode O código do ticket a ser verificado.
-     * @return true se o ticket for de um mensalista válido, false caso contrário.
-     */
     public boolean isTicketVinculadoAPessoa(String ticketCode) {
-        System.out.println("LEITOR SERVICE: Verificando vínculo e validade do ticket '" + ticketCode + "'.");
+        System.out.println("LEITOR SERVICE: Verificando vínculo, status e validade da tag '" + ticketCode + "' em ace_pessoas.");
 
-        // AJUSTE: A query agora junta as duas tabelas para pegar a dt_final correta.
-        String sql = "SELECT T.dt_final " +
-                "FROM est_tickets T " +
-                "INNER JOIN ace_pessoas P ON T.cd_ticket = P.cd_tag " +
-                "WHERE T.cd_ticket = ?";
+        // A query agora consulta apenas a tabela de pessoas e verifica as 3 condições.
+        String sql = "SELECT COUNT(*) FROM ace_pessoas WHERE cd_tag = ? AND fl_status = 1 AND dt_final > ?";
 
         try {
-            // Busca a data de validade do banco de dados usando a query com JOIN.
-            LocalDateTime dtFinalDoBanco = jdbc.queryForObject(sql, new Object[]{ticketCode}, LocalDateTime.class);
-
-            if (dtFinalDoBanco == null) {
-                System.out.println("LEITOR SERVICE: Vínculo encontrado para o ticket '" + ticketCode + "', mas a data final é nula. Acesso negado.");
-                return false;
-            }
-
-            // Compara a data de validade com a data e hora atuais.
-            boolean isValido = dtFinalDoBanco.isAfter(LocalDateTime.now());
+            // Passamos a data e hora atuais como parâmetro para a query
+            Integer count = jdbc.queryForObject(sql, new Object[]{ticketCode, LocalDateTime.now()}, Integer.class);
+            boolean isValido = count != null && count > 0;
 
             if (isValido) {
-                System.out.println("LEITOR SERVICE: Vínculo encontrado e válido. Data final: " + dtFinalDoBanco);
+                System.out.println("LEITOR SERVICE: Vínculo de mensalista encontrado e 100% válido.");
             } else {
-                System.err.println("LEITOR SERVICE: Vínculo encontrado, mas a data de validade está EXPIRADA. Data final: " + dtFinalDoBanco);
+                System.err.println("LEITOR SERVICE: Nenhum vínculo de mensalista válido encontrado para a tag '" + ticketCode + "'. (Pode estar expirado, com status incorreto ou não existir).");
             }
-
             return isValido;
-
-        } catch (EmptyResultDataAccessException e) {
-            // Este erro agora significa que o ticket ou não existe em est_tickets ou não tem um par em ace_pessoas.
-            System.out.println("LEITOR SERVICE: Nenhum vínculo de mensalista válido encontrado para o ticket '" + ticketCode + "'.");
-            return false;
         } catch (Exception e) {
-            System.err.println("LEITOR SERVICE: Ocorreu um erro ao verificar o vínculo do ticket: " + e.getMessage());
-            return false; // Retorna falso em caso de qualquer outro erro.
+            System.err.println("LEITOR SERVICE: Ocorreu um erro ao verificar o vínculo da tag: " + e.getMessage());
+            return false;
         }
     }
 
