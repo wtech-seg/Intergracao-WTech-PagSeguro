@@ -28,8 +28,8 @@ public class PagamentoTEFService {
 
     // --- Constantes para a transação ---
     // Em um projeto real, estes viriam de um arquivo de configuração.
-    private static final String CNPJ_LOJA = "60177876000130";
-    private static final String CODIGO_LOJA = "167";
+    private static final String CNPJ_LOJA = "41087169000108";
+    private static final String CODIGO_LOJA = "36371";
     private static final String NUMERO_PDV = "1";
 
     // --- Monitor de Status para notificar a UI ---
@@ -91,6 +91,12 @@ public class PagamentoTEFService {
         });
 
         new Thread(cancelTask).start();
+    }
+
+    public void solicitarCancelamento() {
+        System.out.println("SERVICE TEF: Solicitação de cancelamento recebida.");
+        this.cancelamentoSolicitado = true;
+        tef.ContinuaFuncaoMCInterativo("ABORTAR");
     }
 
     private Task<ResultadoTEF> criarTaskDePagamento(BigDecimal valor, String tipoPagamento, String ticketCode) {
@@ -409,11 +415,6 @@ public class PagamentoTEFService {
         };
     }
 
-    public void solicitarCancelamento() {
-        System.out.println("SERVICE TEF: Solicitação de cancelamento recebida.");
-        this.cancelamentoSolicitado = true;
-    }
-
     public ResultadoTEF getUltimoResultado() {
         return ultimoResultado;
     }
@@ -478,5 +479,17 @@ public class PagamentoTEFService {
 
     public void setTipoPago(String tipoPago) {
         this.tipoPago = tipoPago;
+    }
+
+    public String getStatus() {
+        return tefStatus.get();
+    }
+
+    public void resetStatusParaIdle() {
+        Platform.runLater(() -> {
+            System.out.println("SERVICE TEF: Resetando status para IDLE.");
+            this.cancelamentoSolicitado = false; // Também limpa a bandeira por segurança
+            tefStatus.set("IDLE");
+        });
     }
 }

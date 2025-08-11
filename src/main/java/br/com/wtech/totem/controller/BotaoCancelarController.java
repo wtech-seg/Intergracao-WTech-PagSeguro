@@ -21,22 +21,22 @@ public class BotaoCancelarController {
     private NavegacaoUtil navegaPara;
 
     /**
-     * Este método é chamado quando o botão dentro do componente é clicado.
-     * Ele executa a lógica universal de cancelamento.
+     * AJUSTE FINAL: Este método agora é "inteligente" e sabe quando cancelar
+     * uma operação ou apenas navegar.
      */
     @FXML
     private void handleCancelar(ActionEvent event) {
         System.out.println("BOTÃO CANCELAR UNIVERSAL: Ação disparada.");
 
-        // 1. Solicita o cancelamento de qualquer operação TEF em andamento.
-        // Se nenhuma operação estiver ativa, o método no serviço simplesmente não fará nada prejudicial.
-        if (pagamentoTEFService != null) {
+        Node source = (Node) event.getSource();
+        String statusAtual = pagamentoTEFService.getStatus();
+
+        if ("IDLE".equals(statusAtual) || "CANCELLED".equals(statusAtual) || "ERROR".equals(statusAtual)) {
+            System.out.println("   -> Nenhuma operação TEF em andamento. Apenas navegando para a tela inicial.");
+            navegaPara.trocaTela("/fxml/tela_inicial.fxml", source);
+        } else {
+            System.out.println("   -> Operação TEF em andamento detectada. Solicitando cancelamento...");
             pagamentoTEFService.solicitarCancelamento();
         }
-
-        // 2. Navega de volta para a tela inicial.
-        // O Node de origem é o próprio botão, que nos dá o contexto da cena atual.
-        Node source = (Node) event.getSource();
-        navegaPara.trocaTela("/fxml/tela_inicial.fxml", source);
     }
 }

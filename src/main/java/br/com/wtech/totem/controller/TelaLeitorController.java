@@ -40,11 +40,11 @@ public class TelaLeitorController {
         if (logoContainer != null) {
             Node imgLogo = logoContainer.lookup("#imgLogo");
             if (imgLogo != null) {
-                imgLogo.setOnMouseClicked(this::handleLogoClick);
+                // imgLogo.setOnMouseClicked(this::handleLogoClick);
             }
         }
         if (imgBarra != null) {
-            imgBarra.setOnMouseClicked(this::handleImgClick);
+            // imgBarra.setOnMouseClicked(this::handleImgClick);
         }
         Platform.runLater(() -> inputLeitura.requestFocus());
     }

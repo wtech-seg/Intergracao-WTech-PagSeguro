@@ -42,7 +42,7 @@ public class TelaAguardandoPagamentoController {
                         isTransactionOver = true;
                         break;
                     case "CANCELLED":
-                        destination = "/fxml/tela_forma_pagamento.fxml";
+                        destination = "/fxml/tela_pagamento_selecionado.fxml";
                         isTransactionOver = true;
                         break;
                 }
