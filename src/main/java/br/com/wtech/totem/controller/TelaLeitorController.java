@@ -142,6 +142,9 @@ public class TelaLeitorController {
             // 3. Navega para a tela de processamento, que irá ler o status 3 e seguir para a impressão.
             navegaPara.trocaTela("/fxml/tela_processando.fxml", inputLeitura);
 
+        } else if (leitorService.finalizarTicketPorGratuidade(valorLido)) {
+            System.out.println("FLUXO GRATUIDADE: Navegando para a próxima tela.");
+            navegaPara.trocaTela("/fxml/tela_processando.fxml", inputLeitura);
         } else {
             // --- CAMINHO 2: TICKET NÃO VINCULADO (FLUXO DE PAGAMENTO NORMAL QUE JÁ FUNCIONAVA) ---
             System.out.println("FLUXO NORMAL: Ticket '" + valorLido + "' não vinculado. Indo para a tela de pagamento.");

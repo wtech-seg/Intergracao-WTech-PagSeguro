@@ -3,6 +3,7 @@ package br.com.wtech.totem.controller;
 import br.com.wtech.totem.entity.Ticket;
 import br.com.wtech.totem.service.ImpressaoService;
 import br.com.wtech.totem.service.LeitorService;
+import br.com.wtech.totem.service.PagamentoTEFService;
 import br.com.wtech.totem.util.NavegacaoUtil;
 import javafx.animation.PauseTransition;
 import javafx.fxml.FXML;
@@ -21,6 +22,8 @@ public class TelaImpressaoController {
     @Autowired private ImpressaoService impressaoService;
     @Autowired private LeitorService leitorService;
     @Autowired private NavegacaoUtil navegaPara;
+
+    @Autowired private PagamentoTEFService pagamentoTEFService;
 
     @FXML
     private void initialize() {
@@ -51,6 +54,8 @@ public class TelaImpressaoController {
             // A lógica de impressão normal que já funcionava.
             impressaoService.registrarOperacoesDeImpressao();
             leitorService.finalizarTicketComDataDeLeitura();
+            leitorService.registrarMovimentoDeSaida();
+            pagamentoTEFService.resetStatusParaIdle();
         }
 
         retornarAoInicioAposDelay();

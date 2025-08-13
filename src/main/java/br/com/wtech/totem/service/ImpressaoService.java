@@ -81,7 +81,7 @@ public class ImpressaoService {
             tipoLeitura = 'T'; // Se for 6, altera para 'T'.
         }
 
-        String ipDestino = "Q192.168.0.96";
+        String ipDestino = "Q192.168.3.20";
         String ipDoTotem = getIpLocal();
 
         String sql = "INSERT INTO ace_tag_leitura (NU_HASH_TAG, DT_LEITURA, CD_PORTA, FL_TIPO_LEITURA, DML_USR, DML_DATA, DML_IP, FL_AGUARDANDO, NU_TAG) " +

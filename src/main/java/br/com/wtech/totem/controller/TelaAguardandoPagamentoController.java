@@ -28,6 +28,12 @@ public class TelaAguardandoPagamentoController {
     private void initialize() {
         labelValorTotal.setText(leitorService.getValorTotalFormatado());
 
+        Platform.runLater(() -> {
+            if (root != null) {
+                root.requestFocus();
+            }
+        });
+
         this.tefStatusListener = (obs, oldStatus, newStatus) -> {
             Platform.runLater(() -> {
                 boolean isTransactionOver = false;

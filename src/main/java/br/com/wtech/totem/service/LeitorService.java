@@ -13,6 +13,7 @@ import java.text.NumberFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Locale;
 
 @Service
@@ -150,6 +151,126 @@ public class LeitorService {
         } catch (Exception e) {
             System.err.println("LEITOR SERVICE: Ocorreu um erro ao verificar o vínculo da tag: " + e.getMessage());
             return false;
+        }
+    }
+
+    public boolean finalizarTicketPorGratuidade(String ticketCode) {
+        // Primeiro, verifica se o ticket é elegível para a gratuidade.
+        if (!isElegivelParaGratuidade(ticketCode)) {
+            return false; // Não é elegível, então não faz nada e retorna false.
+        }
+
+        // Se for elegível, executa a atualização no banco.
+        System.out.println("Finalizando ticket '" + ticketCode + "' como SAÍDA LIVRE por gratuidade (Status=4, TipoPagamento=5)...");
+        String sql = "UPDATE est_tickets SET fl_status = 4, cd_tipo_pagamento = 6, dt_final = ? WHERE cd_ticket = ?";
+
+        try {
+            int linhasAfetadas = jdbc.update(sql, LocalDateTime.now(), ticketCode);
+
+            if (linhasAfetadas > 0) {
+                System.out.println("Ticket '" + ticketCode + "' atualizado com sucesso.");
+                // Após o sucesso, busca o ticket com os dados novos...
+                Ticket ticketAtualizado = this.buscarTicket(ticketCode);
+                // ...e o define como o ticket atual, pronto para a próxima tela.
+                this.setTicketAtual(ticketAtualizado);
+                return true; // Retorna true para confirmar o sucesso da operação completa.
+            } else {
+                System.err.println("A atualização para gratuidade falhou (nenhuma linha afetada).");
+                return false;
+            }
+        } catch (Exception e) {
+            System.err.println("ERRO CRÍTICO ao finalizar ticket '" + ticketCode + "' por gratuidade: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Método auxiliar PRIVADO que apenas VERIFICA a elegibilidade, sem alterar nada.
+     */
+    private boolean isElegivelParaGratuidade(String ticketCode) {
+        try {
+            Ticket ticket = this.buscarTicket(ticketCode);
+            // Um ticket só é elegível se estiver aberto (status 1) e não tiver data de saída.
+            if (ticket.getStatus() != 1 || ticket.getExitTime() != null) {
+                return false;
+            }
+
+            LocalDateTime dataInicial = ticket.getEntryTime();
+            LocalDateTime dataAtual = LocalDateTime.now();
+            long diferencaEmMinutos = ChronoUnit.MINUTES.between(dataInicial, dataAtual);
+            int minutosDeGratuidade = this.getMinutosGratuidade();
+
+            return diferencaEmMinutos >= 0 && diferencaEmMinutos <= minutosDeGratuidade;
+
+        } catch (EmptyResultDataAccessException e) {
+            return false; // Ticket não existe, não é elegível.
+        }
+    }
+
+    private int getMinutosGratuidade() {
+        try {
+            String sql = "SELECT qt_minutos_gratuidade FROM est_par_cobranca LIMIT 1";
+            Integer minutos = jdbc.queryForObject(sql, Integer.class);
+            return minutos != null ? minutos : 0;
+        } catch (Exception e) {
+            System.err.println("ERRO CRÍTICO: Não foi possível buscar os parâmetros de gratuidade. " + e.getMessage());
+            return 0;
+        }
+    }
+
+    private Integer getTurnoAtual() {
+        System.out.println("TURNO: Buscando turno atual aberto...");
+        String sql = "SELECT cd_turno FROM est_turnos WHERE dt_final IS NULL ORDER BY cd_turno DESC LIMIT 1";
+        try {
+            Integer turnoId = jdbc.queryForObject(sql, Integer.class);
+            System.out.println("TURNO: Encontrado turno aberto com ID: " + turnoId);
+            return turnoId;
+        } catch (EmptyResultDataAccessException e) {
+            // Ocorre se nenhum turno estiver aberto.
+            System.err.println("TURNO: Nenhum turno aberto (com dt_final nula) foi encontrado!");
+            return null; // Retorna null se não encontrar um turno aberto.
+        } catch (Exception e) {
+            System.err.println("TURNO: Erro ao buscar o turno atual. Causa: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public void registrarMovimentoDeSaida() {
+        Ticket ticket = getTicketAtual();
+        if (ticket == null) {
+            System.err.println("MOVIMENTO: Ticket atual é nulo. Não foi possível registrar o movimento.");
+            return;
+        }
+
+        // Não registra movimento para tickets "fantasma" de mensalista que não têm valor nem status real de pagamento.
+        if (ticket.getFinalValue() == null && ticket.getStatus() == 3) {
+            System.out.println("MOVIMENTO: Ticket de mensalista sem valor. Movimento não aplicável.");
+            return;
+        }
+
+        System.out.println("MOVIMENTO: Registrando movimentação para o ticket '" + ticket.getTicketCode() + "'.");
+        String sql = "INSERT INTO est_movimentos (cd_ticket, dt_pagamento, vl_final, cd_tipo_pagamento, fl_status, DML_USR, DML_DATA, DML_IP, cd_turno) VALUES (?, ?, ?, ?, ?, 'Autopagamento', NOW(), NULL, ?)";
+
+        try {
+            Integer turnoId = getTurnoAtual();
+
+            // Se o valor final for nulo (caso da gratuidade), usamos 0.
+            BigDecimal valorFinal = ticket.getFinalValue() != null ? ticket.getFinalValue() : BigDecimal.ZERO;
+
+            jdbc.update(sql,
+                    ticket.getTicketCode(),
+                    ticket.getExitTime(),
+                    valorFinal,
+                    ticket.getTipoPagamento(),
+                    ticket.getStatus(),
+                    turnoId
+            );
+            System.out.println("MOVIMENTO: Movimentação registrada com sucesso.");
+
+        } catch (Exception e) {
+            System.err.println("ERRO CRÍTICO: Falha ao inserir registro na tabela est_movimentos para o ticket " + ticket.getTicketCode() + ". Causa: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
