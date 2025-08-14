@@ -96,7 +96,6 @@ public class PagamentoTEFService {
     public void solicitarCancelamento() {
         System.out.println("SERVICE TEF: Solicitação de cancelamento recebida.");
         this.cancelamentoSolicitado = true;
-        tef.ContinuaFuncaoMCInterativo("ABORTAR");
     }
 
     private Task<ResultadoTEF> criarTaskDePagamento(BigDecimal valor, String tipoPagamento, String ticketCode) {
@@ -150,7 +149,7 @@ public class PagamentoTEFService {
                             }
                         }
                     } else if (resposta.startsWith("[PERGUNTA]")) {
-                        if (resposta.contains("TELEFONE DO CLIENTE")) { // Pergunta específica do PIX
+                        if (resposta.contains("TELEFONE DO CLIENTE")) {
                             tef.ContinuaFuncaoMCInterativo("");
                         } else {
                             tef.CancelarFluxoMCInterativo();
@@ -158,19 +157,18 @@ public class PagamentoTEFService {
                         }
                     } else if (resposta.startsWith("[MSG]")) {
                         String mensagem = resposta.substring(5);
-                        // Agora, tanto Cartão quanto PIX podem atualizar o status para "aguardando"
                         if (mensagem.toUpperCase().contains("CARTAO") || mensagem.toUpperCase().contains("PINPAD") ||
                                 mensagem.toUpperCase().contains("AGUARDANDO PAGAMENTO") || mensagem.contains("QRCODE=")) {
                             Platform.runLater(() -> tefStatus.set("WAITING_FOR_CARD"));
                         }
+                    } else if (resposta.startsWith("[ERROABORTAR]") || resposta.startsWith("[ERRODISPLAY]")) {
+                        tef.CancelarFluxoMCInterativo();
+                        throw new RuntimeException("Erro TEF: " + resposta);
                     } else if (resposta.startsWith("[RETORNO]")) {
                         nsuRetornadoPeloTef = extrairCampo(resposta, "CAMPO0133");
                         comprovante = extrairCampo(resposta, "CAMPO122");
                         System.out.println(">>> NSU TEF para reimpressão armazenado: " + nsuRetornadoPeloTef);
                         break;
-                    } else if (resposta.startsWith("[ERROABORTAR]") || resposta.startsWith("[ERRODISPLAY]")) {
-                        tef.CancelarFluxoMCInterativo();
-                        throw new RuntimeException("Erro TEF: " + resposta);
                     }
                 }
 

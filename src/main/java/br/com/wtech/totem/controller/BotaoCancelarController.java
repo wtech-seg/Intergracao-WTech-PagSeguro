@@ -31,12 +31,13 @@ public class BotaoCancelarController {
         Node source = (Node) event.getSource();
         String statusAtual = pagamentoTEFService.getStatus();
 
-        if ("IDLE".equals(statusAtual) || "CANCELLED".equals(statusAtual) || "ERROR".equals(statusAtual)) {
+        if (pagamentoTEFService != null) {
+            pagamentoTEFService.solicitarCancelamento();
+        }
+
+        if ("IDLE".equals(statusAtual)) {
             System.out.println("   -> Nenhuma operação TEF em andamento. Apenas navegando para a tela inicial.");
             navegaPara.trocaTela("/fxml/tela_inicial.fxml", source);
-        } else {
-            System.out.println("   -> Operação TEF em andamento detectada. Solicitando cancelamento...");
-            pagamentoTEFService.solicitarCancelamento();
         }
     }
 }
