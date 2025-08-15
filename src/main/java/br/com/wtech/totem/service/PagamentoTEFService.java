@@ -11,6 +11,8 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,6 +27,8 @@ public class PagamentoTEFService {
     private String valorFormatadoPago;
     private String nsuPago;
     private String tipoPago;
+
+    private final ReentrantLock tefLock = new ReentrantLock(true);
 
     // --- Constantes para a transação ---
     // Em um projeto real, estes viriam de um arquivo de configuração.
@@ -95,120 +99,149 @@ public class PagamentoTEFService {
 
     public void solicitarCancelamento() {
         System.out.println("SERVICE TEF: Solicitação de cancelamento recebida.");
-        this.cancelamentoSolicitado = true;
+        cancelamentoSolicitado = true;
+        Platform.runLater(() -> tefStatus.set("CANCELLING"));
     }
 
     private Task<ResultadoTEF> criarTaskDePagamento(BigDecimal valor, String tipoPagamento, String ticketCode) {
         return new Task<>() {
             @Override
             protected ResultadoTEF call() throws Exception {
-                cancelamentoSolicitado = false;
-                Platform.runLater(() -> tefStatus.set("STARTED"));
-
-                TefOperation operacao = getOperacaoPorTipo(tipoPagamento);
-                String valorFormatado = formatarValorParaTef(valor);
-                String data = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
-                String cupomTicket;
-
+                tefLock.lock();
                 try {
-                    // Tenta converter o ticketCode para um número.
-                    long ticketNum = Long.parseLong(ticketCode);
-                    // Formata o número para o padrão de 6 dígitos.
-                    cupomTicket = String.format("%06d", ticketNum);
-                } catch (NumberFormatException e) {
-                    System.err.println("Aviso: ticketCode '" + ticketCode + "' não é numérico. Usando os primeiros 6 caracteres como fallback.");
-                    // Se não for um número, usa o método antigo como segurança.
-                    cupomTicket = ticketCode.length() > 6 ? ticketCode.substring(0, 6) : ticketCode;
-                }
+                    cancelamentoSolicitado = false;
+                    Platform.runLater(() -> tefStatus.set("STARTED"));
 
-                int ret = tef.IniciaFuncaoMCInterativo(operacao.getCode(), CNPJ_LOJA, 1, cupomTicket, valorFormatado, cupomTicket, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
-                if (ret != 0) { throw new RuntimeException("Erro ao iniciar TEF. Código: " + ret); }
+                    TefOperation operacao = getOperacaoPorTipo(tipoPagamento);
+                    String valorFormatado = formatarValorParaTef(valor); // "100,00"
+                    String data = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+                    String cupomTicket;
 
-                String nsuRetornadoPeloTef = "";
-                String comprovante = "";
-
-                while (true) {
-                    if (isCancelled() || cancelamentoSolicitado) {
-                        tef.CancelarFluxoMCInterativo();
-                        Platform.runLater(() -> tefStatus.set("CANCELLED"));
-                        return new ResultadoTEF(false, "CANCELADO", "A operação foi cancelada pelo usuário.");
+                    try {
+                        long ticketNum = Long.parseLong(ticketCode);
+                        cupomTicket = String.format("%06d", ticketNum);
+                    } catch (NumberFormatException e) {
+                        System.err.println("Aviso: ticketCode '" + ticketCode + "' não é numérico. Usando os primeiros 6 caracteres como fallback.");
+                        cupomTicket = ticketCode.length() > 6 ? ticketCode.substring(0, 6) : ticketCode;
                     }
 
-                    String resposta = tef.AguardaFuncaoMCInterativo();
-                    System.out.println(">> TEF Resposta (Pagamento): " + resposta);
+                    int ret = tef.IniciaFuncaoMCInterativo(
+                            operacao.getCode(), CNPJ_LOJA, 1,
+                            cupomTicket, valorFormatado, cupomTicket,
+                            data, NUMERO_PDV, CODIGO_LOJA, 0, ""
+                    );
+                    if (ret != 0) {
+                        throw new RuntimeException("Erro ao iniciar TEF. Código: " + ret);
+                    }
 
-                    if (resposta == null || resposta.isEmpty()) { Thread.sleep(100); continue; }
+                    String nsuRetornadoPeloTef = "";
+                    String comprovante = "";
 
-                    if (resposta.startsWith("[MENU]")) {
-                        String[] partesMenu = resposta.split("#");
-                        if (partesMenu.length > 2) {
-                            String indiceDaEscolha = partesMenu[2].split("\\|")[0].split(",")[0];
-                            tef.ContinuaFuncaoMCInterativo(indiceDaEscolha);
-                            if (tefStatus.get().equals("STARTED")) {
-                                Platform.runLater(() -> tefStatus.set("SERVER_CONNECTED"));
+                    while (true) {
+                        // >>> Cancelamento deve ser atômico: sem mais chamadas depois.
+                        if (cancelamentoSolicitado) {
+                            System.out.println("SERVICE TEF: Enviando comando de cancelamento para o TEF.");
+                            int c = tef.CancelarFluxoMCInterativo();
+                            System.out.println("CancelarFluxoMCInterativo retorno = " + c);
+                            Platform.runLater(() -> tefStatus.set("CANCELLED"));
+                            return new ResultadoTEF(false, "CANCELADO", "Cancelamento confirmado.");
+                        }
+
+                        String resposta = tef.AguardaFuncaoMCInterativo();
+                        System.out.println(">> TEF Resposta: " + resposta);
+
+                        if (resposta == null || resposta.isEmpty()) {
+                            Thread.sleep(100);
+                            continue;
+                        }
+
+                        if (resposta.startsWith("[MENU]")) {
+                            String[] partesMenu = resposta.split("#");
+                            if (partesMenu.length > 2) {
+                                String indiceDaEscolha = partesMenu[2].split("\\|")[0].split(",")[0];
+                                tef.ContinuaFuncaoMCInterativo(indiceDaEscolha);
+                                if ("STARTED".equals(tefStatus.get())) {
+                                    Platform.runLater(() -> tefStatus.set("SERVER_CONNECTED"));
+                                }
+                            }
+                        } else if (resposta.startsWith("[PERGUNTA]")) {
+                            if (resposta.toUpperCase().contains("TELEFONE DO CLIENTE")) {
+                                tef.ContinuaFuncaoMCInterativo("");
+                            } else {
+                                int c = tef.CancelarFluxoMCInterativo();
+                                System.out.println("Pergunta não suportada. Cancel ret = " + c);
+                                Platform.runLater(() -> tefStatus.set("CANCELLED"));
+                                return new ResultadoTEF(false, "CANCELADO", "Totem não responde perguntas genéricas.");
+                            }
+                        } else if (resposta.startsWith("[MSG]")) {
+                            String mensagem = resposta.substring(5);
+                            String up = mensagem.toUpperCase();
+                            if (up.contains("CARTAO") || up.contains("CARTÃO") || up.contains("PINPAD")
+                                    || up.contains("AGUARDANDO PAGAMENTO") || mensagem.contains("QRCODE=")) {
+                                Platform.runLater(() -> tefStatus.set("WAITING_FOR_CARD"));
+                            }
+                        } else if (resposta.startsWith("[ERROABORTAR]") || resposta.startsWith("[ERRODISPLAY]")) {
+                            System.out.println("SERVICE TEF: Fluxo cancelado confirmado pelo TEF.");
+                            int c = tef.CancelarFluxoMCInterativo(); // fecha formalmente
+                            System.out.println("CancelarFluxoMCInterativo retorno = " + c);
+                            Platform.runLater(() -> tefStatus.set("CANCELLED"));
+                            return new ResultadoTEF(false, "CANCELADO", "Cancelado pelo TEF.");
+                        } else if (resposta.startsWith("[RETORNO]")) {
+                            nsuRetornadoPeloTef = extrairCampo(resposta, "CAMPO0133");
+                            comprovante = extrairCampo(resposta, "CAMPO122");
+                            System.out.println(">>> NSU TEF para reimpressão armazenado: " + nsuRetornadoPeloTef);
+                            break;
+                        }
+                    }
+
+                    System.out.println("Finalizando transação com a DLL...");
+                    ret = tef.FinalizaFuncaoMCInterativo(
+                            98, CNPJ_LOJA, 1, cupomTicket, valorFormatado,
+                            nsuRetornadoPeloTef, data, NUMERO_PDV, CODIGO_LOJA, 0, ""
+                    );
+                    if (ret != 0) {
+                        throw new RuntimeException("Falha ao confirmar a transação no TEF. Código: " + ret);
+                    }
+
+                    setCupomTicketPago(cupomTicket);
+                    setValorFormatadoPago(valorFormatado);
+                    setNSUPago(nsuRetornadoPeloTef);
+                    setTipoPago(tipoPagamento);
+                    System.out.println(">>> Dados da transação armazenados: Cupom=" + getCupomTicketPago() + ", Valor=" + getValorFormatadoPago());
+
+                    System.out.println("Aguardando confirmação final da transação de Cartão...");
+                    int tentativasConfirmacao = 0;
+                    boolean confirmado = false;
+                    while (tentativasConfirmacao < 100) {
+                        String finalResp = tef.AguardaFuncaoMCInterativo();
+                        if (finalResp != null) {
+                            String up = finalResp.toUpperCase();
+                            if (up.contains("CONFIRMADA COM SUCESSO")) {
+                                confirmado = true;
+                                break;
+                            }
+                            if (up.contains("ERRO")) {
+                                throw new RuntimeException("TEF retornou erro na confirmação final: " + finalResp);
                             }
                         }
-                    } else if (resposta.startsWith("[PERGUNTA]")) {
-                        if (resposta.contains("TELEFONE DO CLIENTE")) {
-                            tef.ContinuaFuncaoMCInterativo("");
-                        } else {
-                            tef.CancelarFluxoMCInterativo();
-                            throw new RuntimeException("Operação cancelada: totem não pode responder perguntas genéricas.");
-                        }
-                    } else if (resposta.startsWith("[MSG]")) {
-                        String mensagem = resposta.substring(5);
-                        if (mensagem.toUpperCase().contains("CARTAO") || mensagem.toUpperCase().contains("PINPAD") ||
-                                mensagem.toUpperCase().contains("AGUARDANDO PAGAMENTO") || mensagem.contains("QRCODE=")) {
-                            Platform.runLater(() -> tefStatus.set("WAITING_FOR_CARD"));
-                        }
-                    } else if (resposta.startsWith("[ERROABORTAR]") || resposta.startsWith("[ERRODISPLAY]")) {
-                        tef.CancelarFluxoMCInterativo();
-                        throw new RuntimeException("Erro TEF: " + resposta);
-                    } else if (resposta.startsWith("[RETORNO]")) {
-                        nsuRetornadoPeloTef = extrairCampo(resposta, "CAMPO0133");
-                        comprovante = extrairCampo(resposta, "CAMPO122");
-                        System.out.println(">>> NSU TEF para reimpressão armazenado: " + nsuRetornadoPeloTef);
-                        break;
+                        Thread.sleep(100);
+                        tentativasConfirmacao++;
                     }
-                }
-
-                System.out.println("Finalizando transação com a DLL...");
-                // A chamada de finalização agora é feita para TODOS os tipos de pagamento.
-                ret = tef.FinalizaFuncaoMCInterativo(98, CNPJ_LOJA, 1, cupomTicket, valorFormatado, nsuRetornadoPeloTef, data, NUMERO_PDV, CODIGO_LOJA, 0, "");
-                if (ret != 0) {
-                    throw new RuntimeException("Falha ao confirmar a transação no TEF. Código: " + ret);
-                }
-
-                setCupomTicketPago(cupomTicket);
-                setValorFormatadoPago(valorFormatado);
-                setNSUPago(nsuRetornadoPeloTef);
-                setTipoPago(tipoPagamento);
-                System.out.println(">>> Dados da transação armazenados: Cupom=" + getCupomTicketPago() + ", Valor=" + getValorFormatadoPago());
-
-                System.out.println("Aguardando confirmação final da transação de Cartão...");
-                int tentativasConfirmacao = 0;
-                boolean confirmado = false;
-                while (tentativasConfirmacao < 100) {
-                    String finalResp = tef.AguardaFuncaoMCInterativo();
-                    if (finalResp != null && finalResp.contains("CONFIRMADA COM SUCESSO")) {
-                        confirmado = true;
-                        break;
+                    if (!confirmado) {
+                        // Não assumir sucesso: transação precisa de conciliação
+                        return new ResultadoTEF(false, "PENDENTE_CONFIRMACAO",
+                                "Timeout aguardando confirmação final. Verificar por NSU: " + nsuRetornadoPeloTef);
                     }
-                    if (finalResp != null && finalResp.toUpperCase().contains("ERRO")) {
-                        throw new RuntimeException("TEF retornou erro na confirmação final: " + finalResp);
-                    }
-                    Thread.sleep(100);
-                    tentativasConfirmacao++;
-                }
-                if (!confirmado) {
-                    throw new RuntimeException("Timeout: Não foi recebida a confirmação final da DLL.");
-                }
 
-                System.out.println("Transação finalizada com sucesso!");
-                return new ResultadoTEF(true, "APROVADO", comprovante);
+                    System.out.println("Transação finalizada com sucesso!");
+                    return new ResultadoTEF(true, "APROVADO", comprovante);
+                } finally {
+                    tefLock.unlock();
+                }
             }
         };
     }
+
 
     private Task<ResultadoTEF> criarTaskDeReimpressao() {
         return new Task<>() {
@@ -240,7 +273,7 @@ public class PagamentoTEFService {
                 }
 
                 while (true) {
-                    if (isCancelled() || cancelamentoSolicitado) {
+                    if (cancelamentoSolicitado) {
                         tef.CancelarFluxoMCInterativo();
                         return new ResultadoTEF(false, "CANCELADO", "Operação de reimpressão cancelada.");
                     }
@@ -336,7 +369,7 @@ public class PagamentoTEFService {
 
                 // Loop principal para obter o resultado da operação
                 while (true) {
-                    if (isCancelled() || cancelamentoSolicitado) {
+                    if (cancelamentoSolicitado) {
                         tef.CancelarFluxoMCInterativo();
                         return new ResultadoTEF(false, "CANCELADO", "Operação de estorno cancelada.");
                     }
