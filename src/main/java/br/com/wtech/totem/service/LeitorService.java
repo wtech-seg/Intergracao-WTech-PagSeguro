@@ -249,6 +249,15 @@ public class LeitorService {
             return;
         }
 
+        String checkSql = "SELECT COUNT(*) FROM est_movimentos WHERE cd_ticket = ?";
+        Integer count = jdbc.queryForObject(checkSql, new Object[]{ticket.getTicketCode()}, Integer.class);
+
+        // Se a contagem for maior que 0, o registro já existe.
+        if (count != null && count > 0) {
+            System.out.println("MOVIMENTO: Movimentação para o ticket '" + ticket.getTicketCode() + "' já existe. Nenhuma nova movimentação será registrada.");
+            return; // Encerra o método para não duplicar o registro
+        }
+
         System.out.println("MOVIMENTO: Registrando movimentação para o ticket '" + ticket.getTicketCode() + "'.");
         String sql = "INSERT INTO est_movimentos (cd_ticket, dt_pagamento, vl_final, cd_tipo_pagamento, fl_status, DML_USR, DML_DATA, DML_IP, cd_turno) VALUES (?, ?, ?, ?, ?, 'Autopagamento', NOW(), NULL, ?)";
 
@@ -263,7 +272,7 @@ public class LeitorService {
                     ticket.getExitTime(),
                     valorFinal,
                     ticket.getTipoPagamento(),
-                    ticket.getStatus(),
+                    3,
                     turnoId
             );
             System.out.println("MOVIMENTO: Movimentação registrada com sucesso.");
