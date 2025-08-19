@@ -54,8 +54,12 @@ public class TelaPagamentoSelecionadoController {
         String detalhes = (resultado != null) ? resultado.getMensagemDetalhada() : "Tente novamente.";
         labelDetalhes1.setText("Por favor, tente outra forma de pagamento.");
         labelDetalhes2.setText(detalhes);
-        PauseTransition delay = new PauseTransition(Duration.seconds(4));
-        delay.setOnFinished(event -> navegaPara.trocaTela("/fxml/tela_forma_pagamento.fxml", root));
+        PauseTransition delay = new PauseTransition(Duration.seconds(5));
+        delay.setOnFinished(event -> {
+            leitorService.limparTicketAtual();
+            pagamentoTEFService.resetStatusParaIdle();
+            navegaPara.trocaTela("/fxml/tela_inicial.fxml", root);
+        });
         delay.play();
     }
 

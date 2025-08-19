@@ -5,9 +5,6 @@ import br.com.wtech.totem.util.NavegacaoUtil;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.layout.HBox;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -24,30 +21,18 @@ public class BotaoCancelarController {
     private NavegacaoUtil navegaPara;
 
     @FXML
-    private Button btnCancelar;
-
-    @FXML
     private void handleCancelar(ActionEvent event) {
         System.out.println("BOTÃO CANCELAR UNIVERSAL: Ação disparada.");
 
         Node source = (Node) event.getSource();
         String statusAtual = pagamentoTEFService.getStatus();
 
-        if ("IDLE".equals(statusAtual)) {
+        if ("IDLE".equals(statusAtual) || "FINISHED".equals(statusAtual) || "ERROR".equals(statusAtual)) {
             System.out.println("   -> Nenhuma operação TEF em andamento. Apenas navegando para a tela inicial.");
             navegaPara.trocaTela("/fxml/tela_inicial.fxml", source);
-        } else if (!"CANCELLING".equals(statusAtual)) {
+        } else {
             System.out.println("   -> Operação TEF em andamento detectada. Solicitando cancelamento...");
             pagamentoTEFService.solicitarCancelamento();
-            if (btnCancelar.getGraphic() instanceof HBox hbox) {
-                for (Node node : hbox.getChildren()) {
-                    if (node instanceof Label lbl) {
-                        lbl.setText("Cancelando...");
-                    }
-                }
-            }
-
-            btnCancelar.setDisable(true);
         }
     }
 }

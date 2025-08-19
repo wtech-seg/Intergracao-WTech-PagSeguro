@@ -62,7 +62,7 @@ public class TelaImpressaoController {
     }
 
     private void retornarAoInicioAposDelay() {
-        System.out.println("CUPOM IMPRESSO (simulação). Voltando ao início em 5 segundos.");
+        System.out.println("CUPOM IMPRESSO. Voltando ao início em 5 segundos.");
         PauseTransition delay = new PauseTransition(Duration.seconds(5));
         delay.setOnFinished(event -> {
             System.out.println("Limpando dados da sessão para o próximo cliente.");
