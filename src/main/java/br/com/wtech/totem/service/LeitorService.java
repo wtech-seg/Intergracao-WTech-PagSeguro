@@ -262,16 +262,17 @@ public class LeitorService {
         String sql = "INSERT INTO est_movimentos (cd_ticket, dt_pagamento, vl_final, cd_tipo_pagamento, fl_status, DML_USR, DML_DATA, DML_IP, cd_turno) VALUES (?, ?, ?, ?, ?, 'Autopagamento', NOW(), NULL, ?)";
 
         try {
-            Integer turnoId = getTurnoAtual();
+            String sqlTipoPagamento = "SELECT cd_tipo_pagamento FROM est_tickets WHERE cd_ticket = ?";
+            Integer tipoPagamentoAtualizado = jdbc.queryForObject(sqlTipoPagamento, new Object[]{ticket.getTicketCode()}, Integer.class);
 
-            // Se o valor final for nulo (caso da gratuidade), usamos 0.
+            Integer turnoId = getTurnoAtual();
             BigDecimal valorFinal = ticket.getFinalValue() != null ? ticket.getFinalValue() : BigDecimal.ZERO;
 
             jdbc.update(sql,
                     ticket.getTicketCode(),
                     ticket.getExitTime(),
                     valorFinal,
-                    ticket.getTipoPagamento(),
+                    tipoPagamentoAtualizado,
                     3,
                     turnoId
             );

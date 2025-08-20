@@ -54,7 +54,7 @@ public class TelaPagamentoSelecionadoController {
         String detalhes = (resultado != null) ? resultado.getMensagemDetalhada() : "Tente novamente.";
         labelDetalhes1.setText("Por favor, tente outra forma de pagamento.");
         labelDetalhes2.setText(detalhes);
-        PauseTransition delay = new PauseTransition(Duration.seconds(5));
+        PauseTransition delay = new PauseTransition(Duration.seconds(10));
         delay.setOnFinished(event -> {
             leitorService.limparTicketAtual();
             pagamentoTEFService.resetStatusParaIdle();
@@ -67,7 +67,7 @@ public class TelaPagamentoSelecionadoController {
         labelStatus.setText("CANCELADO");
         labelDetalhes1.setText("A operação foi cancelada.");
         labelDetalhes2.setText("Você será redirecionado em breve.");
-        PauseTransition delay = new PauseTransition(Duration.seconds(5));
+        PauseTransition delay = new PauseTransition(Duration.seconds(10));
         delay.setOnFinished(event -> {
             leitorService.limparTicketAtual();
             pagamentoTEFService.resetStatusParaIdle();
