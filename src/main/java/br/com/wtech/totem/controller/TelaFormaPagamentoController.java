@@ -3,6 +3,7 @@ package br.com.wtech.totem.controller;
 import br.com.wtech.totem.service.FormaPagamentoService;
 import br.com.wtech.totem.service.LeitorService;
 import br.com.wtech.totem.util.NavegacaoUtil;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -33,6 +34,12 @@ public class TelaFormaPagamentoController {
         if (btnDebito != null) btnDebito.setFocusTraversable(false);
         if (btnCredito != null) btnCredito.setFocusTraversable(false);
         if (btnPix != null) btnPix.setFocusTraversable(false);
+
+        Platform.runLater(() -> {
+            if (root != null) {
+                root.requestFocus();
+            }
+        });
     }
 
     /**

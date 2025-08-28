@@ -77,8 +77,8 @@
         <AnchorPane VBox.vgrow="NEVER" style="-fx-padding: 0;">
 
             <!-- Include do botão “Cancelar” -->
-            <fx:include fx:id="cancelarContainer"
-                        source="/fxml/componentes/botaoCancelar.fxml"/>
+<!--            <fx:include fx:id="cancelarContainer"-->
+<!--                        source="/fxml/componentes/botaoCancelar.fxml"/>-->
 
             <!-- Include do bloco “Permanência” -->
             <fx:include fx:id="permanenciaContainer"

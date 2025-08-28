@@ -28,21 +28,24 @@ public class TelaAguardandoPagamentoController {
     private void initialize() {
         labelValorTotal.setText(leitorService.getValorTotalFormatado());
 
+        Platform.runLater(() -> {
+            if (root != null) {
+                root.requestFocus();
+            }
+        });
+
         this.tefStatusListener = (obs, oldStatus, newStatus) -> {
             Platform.runLater(() -> {
                 boolean isTransactionOver = false;
                 String destination = "";
 
-                System.out.println("newStatus: " + newStatus);
+                System.out.println("TELA AGUARDANDO STATUS: " + newStatus);
 
                 switch (newStatus) {
                     case "FINISHED":
                     case "ERROR":
-                        destination = "/fxml/tela_pagamento_selecionado.fxml";
-                        isTransactionOver = true;
-                        break;
                     case "CANCELLED":
-                        destination = "/fxml/tela_forma_pagamento.fxml";
+                        destination = "/fxml/tela_pagamento_selecionado.fxml";
                         isTransactionOver = true;
                         break;
                 }

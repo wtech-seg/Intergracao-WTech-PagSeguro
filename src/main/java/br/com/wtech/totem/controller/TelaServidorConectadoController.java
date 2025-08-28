@@ -28,10 +28,18 @@ public class TelaServidorConectadoController {
     private void initialize() {
         labelValorTotal.setText(leitorService.getValorTotalFormatado());
 
+        Platform.runLater(() -> {
+            if (root != null) {
+                root.requestFocus();
+            }
+        });
+
         this.tefStatusListener = (obs, oldStatus, newStatus) -> {
             Platform.runLater(() -> {
                 boolean shouldNavigate = false;
                 String destination = "";
+
+                System.out.println("TELA SERVIDOR STATUS: " + newStatus);
 
                 switch (newStatus) {
                     case "WAITING_FOR_CARD":
@@ -39,11 +47,8 @@ public class TelaServidorConectadoController {
                         shouldNavigate = true;
                         break;
                     case "ERROR":
-                        destination = "/fxml/tela_pagamento_selecionado.fxml";
-                        shouldNavigate = true;
-                        break;
                     case "CANCELLED":
-                        destination = "/fxml/tela_forma_pagamento.fxml";
+                        destination = "/fxml/tela_pagamento_selecionado.fxml";
                         shouldNavigate = true;
                         break;
                 }

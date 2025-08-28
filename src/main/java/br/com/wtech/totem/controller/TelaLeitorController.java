@@ -1,8 +1,10 @@
 package br.com.wtech.totem.controller;
 
 import br.com.wtech.totem.entity.Ticket;
+import br.com.wtech.totem.service.ImpressaoService;
 import br.com.wtech.totem.service.LeitorService;
 import br.com.wtech.totem.service.PagamentoTEFService;
+import br.com.wtech.totem.service.ResultadoTEF;
 import br.com.wtech.totem.util.NavegacaoUtil;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
@@ -10,111 +12,155 @@ import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.TextField;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseEvent;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.stereotype.Component;
 import javafx.util.Duration;
+import java.util.function.Consumer;
 
 @Component
 public class TelaLeitorController {
 
-    // AJUSTE: Injetamos o Node que corresponde ao fx:id="logoContainer" do seu <fx:include>
     @FXML private Node logoContainer;
+    @FXML private ImageView imgBarra;
     @FXML private TextField inputLeitura;
 
     @Autowired private NavegacaoUtil navegaPara;
     @Autowired private LeitorService leitorService;
     @Autowired private PagamentoTEFService pagamentoTEFService;
+    @Autowired private ImpressaoService impressaoService;
+
+    // Variável para guardar o código do último ticket lido com sucesso
+    private String ultimoTicketCodeLido;
 
     @FXML
     private void initialize() {
-        // AJUSTE: Usamos o lookup de forma segura, com verificação de nulo.
         if (logoContainer != null) {
-            // Procura pelo nó com o ID "imgLogo" DENTRO do componente incluído.
             Node imgLogo = logoContainer.lookup("#imgLogo");
             if (imgLogo != null) {
-                imgLogo.setOnMouseClicked(this::handleLogoClick);
-            } else {
-                System.err.println("AVISO: ImageView com fx:id='imgLogo' não foi encontrada dentro do componente logo.fxml.");
+                // imgLogo.setOnMouseClicked(this::handleLogoClick);
             }
         }
-
+        if (imgBarra != null) {
+            // imgBarra.setOnMouseClicked(this::handleImgClick);
+        }
         Platform.runLater(() -> inputLeitura.requestFocus());
     }
+
     /**
-     * Este método trata o clique na logo para testar o CANCELAMENTO/ESTORNO.
+     * Usa o NSU da última transação e o CÓDIGO do último ticket lido para o ESTORNO.
      */
     @FXML
     private void handleLogoClick(MouseEvent event) {
         System.out.println("--- LOGO CLICADO: INICIANDO TESTE DE ESTORNO ---");
-        String nsuParaCancelar = pagamentoTEFService.getUltimoNsuParaReimpressao();
 
+        final String nsuParaCancelar = pagamentoTEFService.getNSUPago();
+        final String codigoDoTicket = this.ultimoTicketCodeLido;
+
+        if (codigoDoTicket == null || codigoDoTicket.isBlank()) {
+            Platform.runLater(() -> new Alert(Alert.AlertType.WARNING, "Leia um ticket válido antes de tentar o estorno.").show());
+            return;
+        }
         if (nsuParaCancelar == null || nsuParaCancelar.isBlank()) {
-            System.err.println("Nenhum NSU armazenado para estornar. Realize uma transação aprovada primeiro.");
             Platform.runLater(() -> new Alert(Alert.AlertType.WARNING, "Nenhuma transação anterior encontrada para estornar.").show());
             return;
         }
 
-        pagamentoTEFService.iniciarCancelamentoAdministrativo(nsuParaCancelar);
-    }
-    /**
-     * Este método trata o clique na logo para testar a reimpressão.
-     */
-    @FXML
-    private void handleLogoClickOff(MouseEvent event) {
-        System.out.println("--- LOGO CLICADO: INICIANDO TESTE DE REIMPRESSÃO ---");
-        String nsuParaTeste = pagamentoTEFService.getUltimoNsuParaReimpressao();
+        // Define o que fazer QUANDO o estorno terminar
+        Consumer<ResultadoTEF> acaoAoFinalizar = (resultado) -> {
+            if (resultado != null && resultado.isAprovado()) {
+                System.out.println("Estorno TEF bem-sucedido. Registrando no banco para o ticket: " + codigoDoTicket);
+                impressaoService.registrarOperacoesDeCancelamento(codigoDoTicket);
+                Platform.runLater(() -> new Alert(Alert.AlertType.INFORMATION, "Transação estornada com sucesso!").show());
+            } else {
+                System.err.println("Falha no estorno TEF.");
+                Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, "Falha ao estornar transação.").show());
+            }
+        };
 
-        if (nsuParaTeste == null || nsuParaTeste.isBlank()) {
-            System.err.println("Nenhum NSU armazenado para reimpressão. Realize uma transação aprovada primeiro.");
+        // AJUSTE: Passa o callback como segundo argumento para o serviço.
+        pagamentoTEFService.iniciarCancelamentoAdministrativo(acaoAoFinalizar);
+    }
+
+    /**
+     * Usa o NSU da última transação e o CÓDIGO do último ticket lido para a REIMPRESSÃO.
+     */
+    private void handleImgClick(MouseEvent event) {
+        System.out.println("--- BARRA CLICADA: INICIANDO TESTE DE REIMPRESSÃO ---");
+
+        final String nsuParaReimprimir = pagamentoTEFService.getNSUPago();
+        final String codigoDoTicket = this.ultimoTicketCodeLido;
+
+        if (codigoDoTicket == null || codigoDoTicket.isBlank()) {
+            Platform.runLater(() -> new Alert(Alert.AlertType.WARNING, "Leia um ticket válido antes de tentar a reimpressão.").show());
+            return;
+        }
+        if (nsuParaReimprimir == null || nsuParaReimprimir.isBlank()) {
             Platform.runLater(() -> new Alert(Alert.AlertType.WARNING, "Nenhuma transação anterior encontrada para reimprimir.").show());
             return;
         }
 
-        pagamentoTEFService.iniciarReimpressao(nsuParaTeste);
+        Consumer<ResultadoTEF> acaoAoFinalizar = (resultado) -> {
+            if (resultado != null && resultado.isAprovado()) {
+                System.out.println("Reimpressão TEF bem-sucedida. Registrando no banco para o ticket: " + codigoDoTicket);
+                impressaoService.registrarOperacoesDeReimpressao(codigoDoTicket);
+                Platform.runLater(() -> new Alert(Alert.AlertType.INFORMATION, "Reimpressão concluída.").show());
+            } else {
+                System.err.println("Falha na reimpressão TEF.");
+                Platform.runLater(() -> new Alert(Alert.AlertType.ERROR, "Falha ao reimprimir.").show());
+            }
+        };
+
+        // AJUSTE: Passa o callback como segundo argumento para o serviço.
+        pagamentoTEFService.iniciarReimpressao(acaoAoFinalizar);
     }
 
     /**
-     * Este método trata a leitura de tickets normais.
+     * Este método agora guarda o código do ticket lido para uso posterior.
      */
     @FXML
     private void handleLeitor() {
-        // Se o campo já estiver desabilitado (em cooldown), não faz nada.
-        if (inputLeitura.isDisabled()) {
-            return;
-        }
-
+        if (inputLeitura.isDisabled()) { return; }
         String valorLido = inputLeitura.getText();
-        if (valorLido == null || valorLido.isBlank()) {
-            return;
-        }
-
-        // 1. Desabilita o campo IMEDIATAMENTE para evitar novas leituras
+        if (valorLido == null || valorLido.isBlank()) { return; }
         inputLeitura.setDisable(true);
-        System.out.println("Valor lido do QR/Leitor: " + valorLido);
 
-        try {
-            Ticket ticketEncontrado = leitorService.buscarTicket(valorLido);
-            System.out.println("Ticket encontrado: " + ticketEncontrado.getTicketCode());
+        if (leitorService.isTicketVinculadoAPessoa(valorLido)) {
+            // --- CAMINHO 1: VINCULADO (FLUXO DIRETO) ---
+            System.out.println("FLUXO VINCULADO: Tag '" + valorLido + "' pertence a um mensalista válido. Simulando ticket pago.");
 
-            // AQUI ESTÁ A MUDANÇA: Guardamos o objeto inteiro no serviço
-            leitorService.setTicketAtual(ticketEncontrado);
+            // 1. Cria um objeto Ticket "fantasma" com os dados mínimos necessários.
+            Ticket ticketFantasma = new Ticket();
+            ticketFantasma.setTicketCode(valorLido);
+            ticketFantasma.setStatus(3); // Seta o status para PAGO (3), para a próxima tela entender.
 
-            // Navega para a próxima tela (que pode ser a de pagamento)
+            // 2. Define este ticket como o "ticket atual".
+            leitorService.setTicketAtual(ticketFantasma);
+
+            // 3. Navega para a tela de processamento, que irá ler o status 3 e seguir para a impressão.
             navegaPara.trocaTela("/fxml/tela_processando.fxml", inputLeitura);
 
-        } catch (EmptyResultDataAccessException e) {
-            // 2. SUBSTITUI O ALERT POR UMA MENSAGEM NO CONSOLE
-            System.err.println("TICKET NÃO ENCONTRADO: O código '" + valorLido + "' não é válido.");
-
-            // 3. INICIA O DELAY MESMO SE DER ERRO
-            iniciarCooldownParaNovaLeitura();
-
-        } catch (Exception e) {
-            System.err.println("Ocorreu um erro inesperado ao buscar o ticket.");
-            e.printStackTrace();
-            iniciarCooldownParaNovaLeitura();
+        } else if (leitorService.finalizarTicketPorGratuidade(valorLido)) {
+            System.out.println("FLUXO GRATUIDADE: Navegando para a próxima tela.");
+            navegaPara.trocaTela("/fxml/tela_processando.fxml", inputLeitura);
+        } else {
+            // --- CAMINHO 2: TICKET NÃO VINCULADO (FLUXO DE PAGAMENTO NORMAL QUE JÁ FUNCIONAVA) ---
+            System.out.println("FLUXO NORMAL: Ticket '" + valorLido + "' não vinculado. Indo para a tela de pagamento.");
+            try {
+                Ticket ticketEncontrado = leitorService.buscarTicket(valorLido);
+                this.ultimoTicketCodeLido = ticketEncontrado.getTicketCode();
+                leitorService.setTicketAtual(ticketEncontrado);
+                navegaPara.trocaTela("/fxml/tela_processando.fxml", inputLeitura);
+            } catch (EmptyResultDataAccessException e) {
+                this.ultimoTicketCodeLido = null;
+                iniciarCooldownParaNovaLeitura();
+            } catch (Exception e) {
+                this.ultimoTicketCodeLido = null;
+                e.printStackTrace();
+                iniciarCooldownParaNovaLeitura();
+            }
         }
     }
 

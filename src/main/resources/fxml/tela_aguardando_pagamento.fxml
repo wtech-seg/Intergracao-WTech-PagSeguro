@@ -69,7 +69,7 @@
 
         <!-- Texto centralizado no meio do painel -->
         <VBox alignment="CENTER" VBox.vgrow="ALWAYS">
-            <Label text="Insira, passe ou aproxime o cartão no leitor"
+            <Label text="Siga as instruções na maquineta."
                    styleClass="label-destaque"/>
         </VBox>
 

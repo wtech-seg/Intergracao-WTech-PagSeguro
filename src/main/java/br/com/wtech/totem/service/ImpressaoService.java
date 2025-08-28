@@ -34,6 +34,20 @@ public class ImpressaoService {
         registrarImpressaoRecibo(ticket);
         registrarTagLeitura(ticket);
         atualizarStatusParaImpresso(ticket);
+        leitorService.setUltimoTicketPago(ticket.getTicketCode());
+    }
+
+    public void registrarOperacoesDeImpressaoMensalista() {
+        Ticket ticket = leitorService.getTicketAtual();
+
+        if (ticket == null || ticket.getTicketCode() == null) {
+            System.err.println("IMPRESSAO SERVICE: Operação cancelada. Nenhum ticket ativo.");
+            return;
+        }
+
+        registrarImpressaoRecibo(ticket);
+        registrarTagLeitura(ticket);
+        atualizarStatusPessoaParaInativo(ticket.getTicketCode());
     }
 
     /**
@@ -58,11 +72,31 @@ public class ImpressaoService {
 
     private void registrarTagLeitura(Ticket ticket) {
         System.out.println("IMPRESSAO SERVICE: Registrando tag de leitura para o ticket: " + ticket.getTicketCode());
-        String ipDestino = "Q192.168.0.96";
+        // 1. Define o valor padrão para o tipo de leitura.
+        char tipoLeitura = 'Q';
+
+        // 2. Verifica se o tipo de pagamento do ticket é 6.
+        if (leitorService.isTicketVinculadoAPessoa(ticket.getTicketCode())) {
+            System.out.println("IMPRESSAO SERVICE: Tipo de pagamento mensalista detectado. Alterando tipo de leitura para 'T'.");
+            tipoLeitura = 'T'; // Se for 6, altera para 'T'.
+        }
+
+        String ipDestino = "Q192.168.3.20";
+        String ipDoTotem = getIpLocal();
+
         String sql = "INSERT INTO ace_tag_leitura (NU_HASH_TAG, DT_LEITURA, CD_PORTA, FL_TIPO_LEITURA, DML_USR, DML_DATA, DML_IP, FL_AGUARDANDO, NU_TAG) " +
-                "VALUES(?, ?, ?, 'Q', 'autopagamento', ?, ?, 'A', ?)";
-        jdbc.update(sql, ticket.getTicketCode(), LocalDateTime.now(), ipDestino, LocalDateTime.now(), ipDestino, ticket.getTicketCode());
-        System.out.println("IMPRESSAO SERVICE: Tag de leitura inserida com sucesso.");
+                "VALUES(?, ?, ?, ?, 'autopagamento', ?, ?, 'A', ?)";
+
+        // 3. Usa a variável 'tipoLeitura' no comando INSERT.
+        jdbc.update(sql,
+                ticket.getTicketCode(),
+                LocalDateTime.now(),
+                ipDestino,
+                String.valueOf(tipoLeitura), // Converte o char para String para o JDBC
+                LocalDateTime.now(),
+                ipDoTotem,
+                ticket.getTicketCode()
+        );System.out.println("IMPRESSAO SERVICE: Tag de leitura inserida com sucesso.");
     }
 
     private String getIpLocal() {
@@ -73,4 +107,64 @@ public class ImpressaoService {
             return "127.0.0.1";
         }
     }
+
+    public void registrarOperacoesDeReimpressao(String ticketCode) {
+        if (ticketCode == null || ticketCode.isBlank()) {
+            System.err.println("REIMPRESSAO SERVICE: Operação cancelada. Código do ticket não fornecido.");
+            return;
+        }
+        registrarImpressaoRecibo(ticketCode);
+    }
+
+    public void registrarOperacoesDeCancelamento(String ticketCode) {
+        if (ticketCode == null || ticketCode.isBlank()) {
+            System.err.println("CANCELAMENTO SERVICE: Operação cancelada. Código do ticket não fornecido.");
+            return;
+        }
+        atualizarStatusParaCancelado(ticketCode);
+        registrarImpressaoRecibo(ticketCode);
+    }
+
+    private void registrarImpressaoRecibo(String ticketCode) {
+        System.out.println("IMPRESSAO SERVICE: Registrando impressão de recibo para o ticket: " + ticketCode);
+        String ipDoTotem = getIpLocal();
+        String sql = "INSERT INTO ace_qr_code (NO_QR_CODE, FL_SITUACAO, DT_VALIDADE_INI, CD_PORTA, DT_VALIDADE_FIM, DML_DATA, DML_IP, DML_USR) " +
+                "VALUES (?,'A',?,'\\\\\\\\127.0.0.1\\\\ImpEstacionamento', ?, ?, ?, ?)";
+        jdbc.update(sql, ticketCode, LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now(), ipDoTotem, "autopagamento");
+        System.out.println("IMPRESSAO SERVICE: Registro de impressão inserido com sucesso.");
+    }
+
+    private void atualizarStatusParaCancelado(String ticketCode) {
+        System.out.println("CANCELAMENTO SERVICE: Atualizando status para '6' (Cancelado) no ticket: " + ticketCode);
+        String sql = "UPDATE est_tickets SET fl_status = 6 WHERE cd_ticket = ?";
+        int linhasAfetadas = jdbc.update(sql, ticketCode);
+        if (linhasAfetadas > 0) {
+            System.out.println("CANCELAMENTO SERVICE: Status do ticket " + ticketCode + " atualizado para 6 no banco de dados.");
+        } else {
+            System.err.println("CANCELAMENTO SERVICE: Nenhuma linha foi atualizada para o ticket " + ticketCode + ".");
+        }
+    }
+
+    /**
+     * Atualiza o status de uma pessoa na tabela ace_pessoas para 0 (inativo).
+     * Chamado quando um mensalista finaliza sua saída.
+     * @param ticketCode A tag da pessoa a ser atualizada.
+     */
+    public void atualizarStatusPessoaParaInativo(String ticketCode) {
+        if (ticketCode == null || ticketCode.isBlank()) {
+            System.err.println("IMPRESSAO SERVICE: Operação cancelada. Nenhum código de ticket fornecido para inativar pessoa.");
+            return;
+        }
+
+        System.out.println("IMPRESSAO SERVICE: Atualizando status para '0' (Inativo) na tabela ace_pessoas para a tag: " + ticketCode);
+        String sql = "UPDATE ace_pessoas SET fl_status = 0 WHERE cd_tag = ?";
+        int linhasAfetadas = jdbc.update(sql, ticketCode);
+
+        if (linhasAfetadas > 0) {
+            System.out.println("IMPRESSAO SERVICE: Status da pessoa com tag " + ticketCode + " atualizado para 0 com sucesso.");
+        } else {
+            System.err.println("IMPRESSAO SERVICE: Nenhuma pessoa encontrada com a tag " + ticketCode + " para atualizar o status.");
+        }
+    }
+
 }
